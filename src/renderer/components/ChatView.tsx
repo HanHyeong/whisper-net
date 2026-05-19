@@ -125,7 +125,7 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-3 border-t border-gray-700 bg-gray-800 flex gap-2">
+      <div className="p-3 border-t border-gray-700 bg-gray-800 flex gap-2 items-center">
         <textarea
           ref={textareaRef}
           value={text}
