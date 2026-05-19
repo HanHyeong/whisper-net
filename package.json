@@ -14,6 +14,27 @@
     "dist": "npm run build && electron-builder",
     "postinstall": "electron-builder install-app-deps"
   },
+  "build": {
+    "appId": "com.whisper-net.app",
+    "productName": "Whisper Net",
+    "icon": "build/icon.png",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.social-networking"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/node": "^20.12.12",
