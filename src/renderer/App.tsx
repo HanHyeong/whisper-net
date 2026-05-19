@@ -98,6 +98,12 @@ export default function App() {
     })
   }
 
+  const handleJoinRoom = (roomId: string) => {
+    window.whisperAPI.joinRoom(roomId)
+    // After joining, refresh rooms list
+    window.whisperAPI.getRooms().then((list: any) => setRooms(list))
+  }
+
   const handleBrowsePeerFiles = (peer: Peer) => {
     setBrowsePeer(peer)
   }
@@ -131,6 +137,7 @@ export default function App() {
         onEditNickname={() => setShowNickname(true)}
         onSetSharedFolder={handleSetSharedFolder}
         onStopSharing={handleStopSharing}
+        onJoinRoom={handleJoinRoom}
         onBrowsePeerFiles={handleBrowsePeerFiles}
         nickname={localNickname}
         sharedFolder={sharedFolder}

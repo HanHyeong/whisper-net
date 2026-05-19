@@ -6,6 +6,7 @@ interface Props {
   activeRoomId: string | null
   onSelectRoom: (id: string) => void
   onCreateRoom: () => void
+  onJoinRoom: (roomId: string) => void
   onManualConnect: () => void
   onEditNickname: () => void
   onSetSharedFolder: () => void
@@ -15,7 +16,15 @@ interface Props {
   sharedFolder: string | null
 }
 
-export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, nickname, sharedFolder }: Props) {
+export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, nickname, sharedFolder }: Props) {
+  // Derive discovered public rooms from peers
+  const discoveredRooms = peers
+    .flatMap((p) => (p.rooms || []).filter((r: any) => r.type === 'public'))
+    .filter((r, i, arr) => arr.findIndex((x) => x.roomId === r.roomId) === i)
+
+  const myRoomIds = new Set(rooms.map((r) => r.roomId))
+  const newDiscovered = discoveredRooms.filter((r: any) => !myRoomIds.has(r.roomId))
+
   return (
     <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
       <div className="p-4 border-b border-gray-700">
@@ -63,7 +72,7 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
 
       <div className="flex-1 p-3 overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-gray-400 uppercase">Rooms</span>
+          <span className="text-xs font-semibold text-gray-400 uppercase">My Rooms</span>
           <button onClick={onCreateRoom} className="text-xs bg-emerald-600 hover:bg-emerald-500 px-2 py-1 rounded">+ New Room</button>
         </div>
         <ul className="space-y-1">
@@ -81,6 +90,28 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
           ))}
           {rooms.length === 0 && <li className="text-xs text-gray-600 px-2">No rooms</li>}
         </ul>
+
+        {newDiscovered.length > 0 && (
+          <>
+            <div className="flex items-center justify-between mt-4 mb-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase">Discovered Public Rooms</span>
+            </div>
+            <ul className="space-y-1">
+              {newDiscovered.map((r: any) => (
+                <li
+                  key={r.roomId}
+                  onClick={() => onJoinRoom(r.roomId)}
+                  className="text-sm px-3 py-2 rounded cursor-pointer hover:bg-gray-700 text-gray-300 flex items-center justify-between border border-dashed border-gray-600"
+                >
+                  <span className="truncate">{r.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300">
+                    + Join
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       <div className="p-3 border-t border-gray-700 space-y-2">
