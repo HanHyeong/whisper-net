@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore, Peer } from './stores/appStore'
 import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
@@ -24,12 +24,16 @@ export default function App() {
   const [browsePeer, setBrowsePeer] = useState<Peer | null>(null)
   const [pendingJoinRoom, setPendingJoinRoom] = useState<{ roomId: string; name: string; type: 'public' | 'private' } | null>(null)
 
+  // Keep latest activeRoomId in ref to avoid stale closure in event handlers
+  const activeRoomIdRef = useRef(activeRoomId)
+  activeRoomIdRef.current = activeRoomId
+
   useEffect(() => {
     const unsubPeers = window.whisperAPI.onPeers((list) => setPeers(list))
     const unsubMsg = window.whisperAPI.onMessage((msg) => {
       addMessage(msg)
       // Increment unread if message is for a non-active room
-      if (msg.roomId !== activeRoomId) {
+      if (msg.roomId !== activeRoomIdRef.current) {
         incrementUnread(msg.roomId)
       }
     })
