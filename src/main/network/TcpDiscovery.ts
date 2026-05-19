@@ -112,21 +112,15 @@ export class TcpDiscovery extends EventEmitter {
   }
 
   private async scanOnce() {
-    const myIps = this.getLocalIps()
-    if (myIps.length === 0) return
-
-    // Collect targets from all subnets
-    const targetSet = new Set<string>()
-    for (const myIp of myIps) {
-      const prefix = myIp.split('.').slice(0, 3).join('.')
-      for (let i = 1; i <= 254; i++) {
-        const ip = `${prefix}.${i}`
-        if (ip === myIp) continue
-        targetSet.add(ip)
-      }
+    const myIp = this.getLocalIp()
+    if (!myIp) return
+    const prefix = myIp.split('.').slice(0, 3).join('.')
+    const targets: string[] = []
+    for (let i = 1; i <= 254; i++) {
+      const ip = `${prefix}.${i}`
+      if (ip === myIp) continue
+      targets.push(ip)
     }
-
-    const targets = Array.from(targetSet)
 
     // shuffle + batch
     for (let i = targets.length - 1; i > 0; i--) {
@@ -222,9 +216,9 @@ export class TcpDiscovery extends EventEmitter {
     }, 5000)
   }
 
-  private getLocalIps(): string[] {
-    const ips: string[] = []
+  private getLocalIp(): string {
     const ifaces = os.networkInterfaces()
+    const ips: string[] = []
     for (const name of Object.keys(ifaces)) {
       for (const iface of ifaces[name] || []) {
         if (iface.family === 'IPv4' && !iface.internal) {
@@ -232,12 +226,8 @@ export class TcpDiscovery extends EventEmitter {
         }
       }
     }
-    return ips.length > 0 ? ips : ['127.0.0.1']
-  }
-
-  private getLocalIp(): string {
-    const ips = this.getLocalIps()
-    // Prefer 10.x / 172.16-31.x / 192.168.x private ranges over others
+    if (ips.length === 0) return '127.0.0.1'
+    // Prefer RFC1918 private ranges over VPN/virtual interfaces
     const privateIp = ips.find((ip) =>
       ip.startsWith('10.') ||
       ip.startsWith('172.1') || ip.startsWith('172.2') || ip.startsWith('172.3') ||
