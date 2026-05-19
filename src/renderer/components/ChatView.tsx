@@ -3,7 +3,6 @@ import { Room, ChatMessage, useAppStore } from '../stores/appStore'
 
 interface Props {
   room: Room
-  onSendFile: (peerId: string) => void
   onSendFileAttachment: () => void
   onDownloadAttachment: (msg: ChatMessage) => void
 }
@@ -18,10 +17,9 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export default function ChatView({ room, onSendFile, onSendFileAttachment, onDownloadAttachment }: Props) {
+export default function ChatView({ room, onSendFileAttachment, onDownloadAttachment }: Props) {
   const { localPeerId } = useAppStore()
   const [text, setText] = useState('')
-  const [dragOver, setDragOver] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -39,30 +37,8 @@ export default function ChatView({ room, onSendFile, onSendFileAttachment, onDow
     return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
   }
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragOver(false)
-    const target = room.members.find((m) => m !== localPeerId)
-    if (target) {
-      onSendFile(target)
-    }
-  }
-
-  const otherMembers = room.members.filter((m) => m !== localPeerId)
-
   return (
-    <div
-      className="flex flex-col h-full relative"
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
-    >
-      {dragOver && (
-        <div className="absolute inset-0 bg-emerald-900/50 border-2 border-dashed border-emerald-400 z-10 flex items-center justify-center pointer-events-none">
-          <span className="text-emerald-300 font-semibold">파일을 여기에 놓아 전송</span>
-        </div>
-      )}
-
+    <div className="flex flex-col h-full relative">
       <header className="px-4 py-3 border-b border-gray-700 bg-gray-800 flex items-center justify-between">
         <div>
           <h3 className="font-semibold">{room.name}</h3>
@@ -76,14 +52,6 @@ export default function ChatView({ room, onSendFile, onSendFileAttachment, onDow
           >
             📎 파일 첨부
           </button>
-          {otherMembers.length === 1 && (
-            <button
-              onClick={() => onSendFile(otherMembers[0])}
-              className="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded border border-gray-600"
-            >
-              📎 파일 별내기
-            </button>
-          )}
         </div>
       </header>
 

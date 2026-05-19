@@ -170,21 +170,6 @@ export default function App() {
     setBrowsePeer(peer)
   }
 
-  const handleSendFile = async (peerId: string) => {
-    const res: any = await window.whisperAPI.offerFile(peerId)
-    if (res) {
-      addTransfer({
-        transferId: res.transferId,
-        fileName: res.fileName,
-        direction: 'upload',
-        received: 0,
-        total: res.size,
-        peerId,
-        status: 'transferring',
-      })
-    }
-  }
-
   const activeRoom = rooms.find((r) => r.roomId === activeRoomId)
 
   return (
@@ -212,7 +197,6 @@ export default function App() {
         {activeRoom ? (
           <ChatView
             room={activeRoom}
-            onSendFile={handleSendFile}
             onSendFileAttachment={handleSendFileAttachment}
             onDownloadAttachment={handleDownloadAttachment}
           />
