@@ -95,7 +95,16 @@ export class NetworkManager extends EventEmitter {
     this.discovery.on('peer:left', (peerId) => {
       this.peers.delete(peerId)
       this.client.disconnect(peerId)
+      // Remove peer from all rooms they were in
+      for (const room of this.rooms.values()) {
+        if (room.members.delete(peerId)) {
+          // If only I'm left, keep the room alive so I can continue chatting
+          // and re-advertise it for others to rejoin
+        }
+      }
+      this.updateDiscoveryRooms()
       this.emit('peers', this.getPeers())
+      this.emit('rooms', this.getRooms())
     })
   }
 
@@ -255,6 +264,7 @@ export class NetworkManager extends EventEmitter {
           messages: [],
         }
         this.rooms.set(roomId, stub)
+        this.updateDiscoveryRooms()  // advertise that I have this room
         return
       }
     }
