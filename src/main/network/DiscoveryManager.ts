@@ -64,6 +64,7 @@ export class DiscoveryManager extends EventEmitter {
       nickname: p.nickname,
       ip: p.ip,
       tcpPort: p.tcpPort,
+      discoveryPort: p.discoveryPort || 8080,
       lastSeen: Date.now(),
       rooms: p.rooms || [],
     }

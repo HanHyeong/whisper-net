@@ -3,6 +3,7 @@ export interface PeerInfo {
   nickname: string
   ip: string
   tcpPort: number
+  discoveryPort: number
   lastSeen: number
   rooms: RoomInfo[]
 }
