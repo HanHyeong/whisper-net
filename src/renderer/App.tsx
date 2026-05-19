@@ -6,6 +6,7 @@ import CreateRoomModal from './components/CreateRoomModal'
 import NicknameModal from './components/NicknameModal'
 import ManualConnectModal from './components/ManualConnectModal'
 import SharedFileBrowser from './components/SharedFileBrowser'
+import JoinRoomModal from './components/JoinRoomModal'
 
 export default function App() {
   const {
@@ -18,7 +19,9 @@ export default function App() {
   const [showCreate, setShowCreate] = useState(false)
   const [showNickname, setShowNickname] = useState(false)
   const [showManual, setShowManual] = useState(false)
+  const [showJoinModal, setShowJoinModal] = useState(false)
   const [browsePeer, setBrowsePeer] = useState<Peer | null>(null)
+  const [pendingJoinRoom, setPendingJoinRoom] = useState<{ roomId: string; name: string; type: 'public' | 'private' } | null>(null)
 
   useEffect(() => {
     const unsubPeers = window.whisperAPI.onPeers((list) => setPeers(list))
@@ -98,9 +101,18 @@ export default function App() {
     })
   }
 
-  const handleJoinRoom = (roomId: string) => {
-    window.whisperAPI.joinRoom(roomId)
-    // After joining, refresh rooms list
+  const handleRequestJoinRoom = (roomId: string, name: string, type: 'public' | 'private') => {
+    if (type === 'public') {
+      window.whisperAPI.joinRoom(roomId)
+      window.whisperAPI.getRooms().then((list: any) => setRooms(list))
+    } else {
+      setPendingJoinRoom({ roomId, name, type })
+      setShowJoinModal(true)
+    }
+  }
+
+  const handleJoinRoom = (roomId: string, password?: string) => {
+    window.whisperAPI.joinRoom(roomId, password)
     window.whisperAPI.getRooms().then((list: any) => setRooms(list))
   }
 
@@ -137,7 +149,7 @@ export default function App() {
         onEditNickname={() => setShowNickname(true)}
         onSetSharedFolder={handleSetSharedFolder}
         onStopSharing={handleStopSharing}
-        onJoinRoom={handleJoinRoom}
+        onRequestJoinRoom={handleRequestJoinRoom}
         onBrowsePeerFiles={handleBrowsePeerFiles}
         nickname={localNickname}
         sharedFolder={sharedFolder}
@@ -226,6 +238,15 @@ export default function App() {
           ip={browsePeer.ip}
           discoveryPort={browsePeer.discoveryPort}
           onClose={() => setBrowsePeer(null)}
+        />
+      )}
+      {showJoinModal && pendingJoinRoom && (
+        <JoinRoomModal
+          roomName={pendingJoinRoom.name}
+          roomId={pendingJoinRoom.roomId}
+          roomType={pendingJoinRoom.type}
+          onClose={() => { setShowJoinModal(false); setPendingJoinRoom(null) }}
+          onJoin={handleJoinRoom}
         />
       )}
     </div>
