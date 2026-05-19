@@ -27,6 +27,7 @@ export interface AttachmentInfo {
   senderId: string
   messageId: string
   localPath?: string
+  dataUrl?: string
 }
 
 export interface ChatMessage {

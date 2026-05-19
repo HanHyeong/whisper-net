@@ -95,12 +95,11 @@ export default function ChatView({ room, onSendFile, onSendFileAttachment, onDow
 
               {msg.attachment ? (
                 <div className="space-y-2">
-                  {isImageFile(msg.attachment.fileName) && msg.attachment.localPath ? (
+                  {isImageFile(msg.attachment.fileName) && msg.attachment.dataUrl ? (
                     <img
-                      src={`file://${msg.attachment.localPath}`}
+                      src={msg.attachment.dataUrl}
                       alt={msg.attachment.fileName}
                       className="max-w-[240px] max-h-[180px] rounded object-contain"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
                   ) : null}
                   <div className="flex items-center gap-2 bg-black/20 rounded px-2 py-1.5">

@@ -152,7 +152,10 @@ export default function App() {
       return
     }
     if (result?.localPath) {
-      updateMessageAttachment(msg.roomId, msg.attachment.messageId, result.localPath)
+      updateMessageAttachment(msg.roomId, msg.attachment.messageId, {
+        localPath: result.localPath,
+        dataUrl: result.dataUrl,
+      })
     }
   }
 

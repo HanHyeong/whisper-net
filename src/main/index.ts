@@ -157,7 +157,15 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
     const remotePath = `_roomsFiles/${roomId}/${messageId}/${fileName}`
     try {
       await downloadFile(senderIp, senderDiscoveryPort, remotePath, destPath)
-      return { localPath: destPath }
+      const result: any = { localPath: destPath }
+      // Convert image to data URL for inline display
+      const ext = path.extname(fileName).toLowerCase()
+      if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext)) {
+        const buf = fs.readFileSync(destPath)
+        const mime = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : ext === '.webp' ? 'image/webp' : 'image/jpeg'
+        result.dataUrl = `data:${mime};base64,${buf.toString('base64')}`
+      }
+      return result
     } catch (err: any) {
       return { error: err.message || '다운로드 실패' }
     }

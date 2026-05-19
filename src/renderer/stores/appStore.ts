@@ -16,6 +16,7 @@ export interface AttachmentInfo {
   senderId: string
   messageId: string
   localPath?: string
+  dataUrl?: string
 }
 
 export interface ChatMessage {
@@ -69,7 +70,7 @@ interface AppState {
   removeTransfer: (id: string) => void
   incrementUnread: (roomId: string) => void
   clearUnread: (roomId: string) => void
-  updateMessageAttachment: (roomId: string, messageId: string, localPath: string) => void
+  updateMessageAttachment: (roomId: string, messageId: string, patch: Partial<AttachmentInfo>) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -95,7 +96,7 @@ export const useAppStore = create<AppState>((set) => ({
           : r
       ),
     })),
-  updateMessageAttachment: (roomId: string, messageId: string, localPath: string) =>
+  updateMessageAttachment: (roomId: string, messageId: string, patch: Partial<AttachmentInfo>) =>
     set((state) => ({
       rooms: state.rooms.map((r) =>
         r.roomId === roomId
@@ -103,7 +104,7 @@ export const useAppStore = create<AppState>((set) => ({
               ...r,
               messages: r.messages.map((m) =>
                 m.attachment?.messageId === messageId
-                  ? { ...m, attachment: { ...m.attachment, localPath } }
+                  ? { ...m, attachment: { ...m.attachment, ...patch } }
                   : m
               ),
             }
