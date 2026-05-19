@@ -60,7 +60,8 @@ export class TcpDiscovery extends EventEmitter {
     return new Promise((resolve, reject) => {
       const s = http.createServer((req, res) => {
         res.setHeader('Content-Type', 'application/json')
-        if (req.url === '/whisper/peers' && req.method === 'GET') {
+        const pathname = this.getPathname(req)
+        if (pathname === '/whisper/peers' && req.method === 'GET') {
           const body = JSON.stringify({
             self: {
               peerId: this.myInfo.peerId,
@@ -74,7 +75,7 @@ export class TcpDiscovery extends EventEmitter {
           })
           res.writeHead(200)
           res.end(body)
-        } else if (req.url === '/whisper/heartbeat' && req.method === 'POST') {
+        } else if (pathname === '/whisper/heartbeat' && req.method === 'POST') {
           let data = ''
           req.on('data', (c) => (data += c))
           req.on('end', () => {
@@ -87,9 +88,9 @@ export class TcpDiscovery extends EventEmitter {
             res.writeHead(200)
             res.end('{}')
           })
-        } else if (req.url === '/whisper/share' && req.method === 'GET') {
+        } else if (pathname === '/whisper/share' && req.method === 'GET') {
           this.handleShareList(req, res)
-        } else if (req.url?.startsWith('/whisper/share/') && req.method === 'GET') {
+        } else if (pathname.startsWith('/whisper/share/') && req.method === 'GET') {
           this.handleShareDownload(req, res)
         } else {
           res.writeHead(404)
@@ -100,6 +101,14 @@ export class TcpDiscovery extends EventEmitter {
       s.on('error', (e) => reject(e))
       this.server = s
     })
+  }
+
+  private getPathname(req: http.IncomingMessage): string {
+    try {
+      return new URL(req.url!, `http://${req.headers.host}`).pathname
+    } catch {
+      return req.url || ''
+    }
   }
 
   private async scanOnce() {
