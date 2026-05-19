@@ -171,6 +171,14 @@ export class NetworkManager extends EventEmitter {
         })
         break
       }
+      case 'nickname_changed': {
+        const peer = this.peers.get(msg.peerId)
+        if (peer) {
+          peer.nickname = msg.nickname
+          this.emit('peers', this.getPeers())
+        }
+        break
+      }
       case 'file_attachment': {
         const p = msg.payload as FileAttachmentPayload
         const chat: ChatMessage = {
@@ -359,6 +367,15 @@ export class NetworkManager extends EventEmitter {
   updateNickname(nickname: string) {
     this.local.nickname = nickname
     this.discovery.setNickname?.(nickname)
+    // Broadcast nickname change to all known peers immediately
+    for (const peerId of this.peers.keys()) {
+      this.sendDirect(peerId, {
+        type: 'nickname_changed',
+        peerId: this.local.peerId,
+        nickname: this.local.nickname,
+        timestamp: Date.now(),
+      })
+    }
   }
 
   getSharedPath(): string | null {

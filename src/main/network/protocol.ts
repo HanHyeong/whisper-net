@@ -24,6 +24,7 @@ export type MessageType =
   | 'room_members'
   | 'text_message'
   | 'file_attachment'
+  | 'nickname_changed'
   | 'file_offer'
   | 'file_accept'
   | 'file_reject'
