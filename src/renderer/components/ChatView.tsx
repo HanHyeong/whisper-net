@@ -21,15 +21,26 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
   const { localPeerId } = useAppStore()
   const [text, setText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [room.messages])
 
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+  }, [text])
+
   const send = () => {
     if (!text.trim()) return
     window.whisperAPI.sendText(room.roomId, text.trim())
     setText('')
+    // Reset height after send
+    const el = textareaRef.current
+    if (el) el.style.height = 'auto'
   }
 
   const formatTime = (ts: number) => {
@@ -107,6 +118,7 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
 
       <div className="p-3 border-t border-gray-700 bg-gray-800 flex gap-2">
         <textarea
+          ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -117,7 +129,7 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
           }}
           placeholder="메시지를 입력하세요..."
           rows={1}
-          className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none"
+          className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
         />
         <button onClick={send} className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded text-sm font-medium">전송</button>
       </div>
