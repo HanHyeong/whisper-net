@@ -90,7 +90,12 @@ export default function ChatView({ room, onSendFile }: Props) {
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              send()
+            }
+          }}
           placeholder="메시지를 입력하세요..."
           className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
         />
