@@ -22,7 +22,7 @@ const activeTransfers = new Map<
   }
 >()
 
-function createWindow(initialNickname: string) {
+function createWindow(initialNickname: string, initialSharedPath?: string) {
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
@@ -83,6 +83,11 @@ function createWindow(initialNickname: string) {
   })
 
   network.start()
+
+  // Auto-load shared folder from config on startup
+  if (initialSharedPath) {
+    network.setSharedPath(initialSharedPath)
+  }
 
   // IPC handlers
   ipcMain.handle('app:get-config', () => loadConfig())
@@ -272,11 +277,11 @@ function downloadFile(ip: string, port: number, fileName: string, destPath: stri
 app.whenReady().then(() => {
   const cfg = loadConfig()
   const nickname = cfg.nickname || ''
-  createWindow(nickname)
+  createWindow(nickname, cfg.sharedPath)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow(nickname)
+      createWindow(nickname, cfg.sharedPath)
     }
   })
 })
