@@ -23,6 +23,7 @@ const api = {
   cancelTransfer: (transferId: string) => ipcRenderer.invoke('net:cancel-transfer', transferId),
   setSharedFolder: (path?: string | null) => ipcRenderer.invoke('app:set-shared-folder', path),
   getSharedFolder: () => ipcRenderer.invoke('app:get-shared-folder'),
+  openFile: (filePath: string) => ipcRenderer.invoke('app:open-file', filePath),
   rendererReady: () => ipcRenderer.send('app:renderer-ready'),
   listPeerFiles: (ip: string, discoveryPort: number, relativePath?: string) => ipcRenderer.invoke('net:list-peer-files', ip, discoveryPort, relativePath),
   downloadPeerFiles: (ip: string, discoveryPort: number, files: string[], destDir: string, basePath?: string) => ipcRenderer.invoke('net:download-peer-files', ip, discoveryPort, files, destDir, basePath),

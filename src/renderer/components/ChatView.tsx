@@ -78,24 +78,33 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
                     <img
                       src={msg.attachment.dataUrl}
                       alt={msg.attachment.fileName}
-                      className="max-w-[240px] max-h-[180px] rounded object-contain"
+                      className="max-w-[240px] max-h-[180px] rounded object-contain cursor-pointer"
+                      onClick={() => msg.attachment?.localPath && window.whisperAPI.openFile(msg.attachment.localPath)}
                     />
                   ) : null}
-                  <div className="flex items-center gap-2 bg-black/20 rounded px-2 py-1.5">
+                  <div
+                    className="flex items-center gap-2 bg-black/20 rounded px-2 py-1.5 cursor-pointer"
+                    onClick={() => msg.attachment?.localPath && window.whisperAPI.openFile(msg.attachment.localPath)}
+                  >
                     <span className="text-lg">{isImageFile(msg.attachment.fileName) ? '🖼️' : '📄'}</span>
                     <div className="flex-1 min-w-0">
                       <div className="truncate text-sm">{msg.attachment.fileName}</div>
                       <div className="text-[10px] opacity-70">{formatFileSize(msg.attachment.fileSize)}</div>
                     </div>
-                    {msg.attachment.localPath ? (
-                      <span className="text-[10px] bg-emerald-600 px-2 py-0.5 rounded">✓ 받음</span>
-                    ) : (
-                      <button
-                        onClick={() => onDownloadAttachment(msg)}
-                        className="text-[10px] bg-blue-600 hover:bg-blue-500 px-2 py-0.5 rounded"
-                      >
-                        다운로드
-                      </button>
+                    {msg.senderId !== localPeerId && (
+                      msg.attachment.localPath ? (
+                        <span className="text-[10px] bg-emerald-600 px-2 py-0.5 rounded">✓ 받음</span>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDownloadAttachment(msg)
+                          }}
+                          className="text-[10px] bg-blue-600 hover:bg-blue-500 px-2 py-0.5 rounded"
+                        >
+                          다운로드
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
