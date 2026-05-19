@@ -45,6 +45,7 @@ interface AppState {
   rooms: Room[]
   activeRoomId: string | null
   transfers: FileTransfer[]
+  unreadCounts: Record<string, number>
   setLocalPeerId: (id: string) => void
   setLocalNickname: (name: string) => void
   setSharedFolder: (path: string | null) => void
@@ -56,6 +57,8 @@ interface AppState {
   addTransfer: (t: FileTransfer) => void
   updateTransfer: (id: string, patch: Partial<FileTransfer>) => void
   removeTransfer: (id: string) => void
+  incrementUnread: (roomId: string) => void
+  clearUnread: (roomId: string) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -66,6 +69,7 @@ export const useAppStore = create<AppState>((set) => ({
   rooms: [],
   activeRoomId: null,
   transfers: [],
+  unreadCounts: {},
   setLocalPeerId: (id) => set({ localPeerId: id }),
   setLocalNickname: (name) => set({ localNickname: name }),
   setSharedFolder: (path) => set({ sharedFolder: path }),
@@ -90,4 +94,17 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       transfers: state.transfers.filter((t) => t.transferId !== id),
     })),
+  incrementUnread: (roomId) =>
+    set((state) => ({
+      unreadCounts: {
+        ...state.unreadCounts,
+        [roomId]: (state.unreadCounts[roomId] || 0) + 1,
+      },
+    })),
+  clearUnread: (roomId) =>
+    set((state) => {
+      const next = { ...state.unreadCounts }
+      delete next[roomId]
+      return { unreadCounts: next }
+    }),
 }))

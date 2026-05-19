@@ -14,9 +14,10 @@ interface Props {
   onBrowsePeerFiles: (peer: Peer) => void
   nickname: string
   sharedFolder: string | null
+  unreadCounts: Record<string, number>
 }
 
-export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onRequestJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, nickname, sharedFolder }: Props) {
+export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onRequestJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, nickname, sharedFolder, unreadCounts }: Props) {
   // Derive discovered rooms from peers (both public and private)
   const discoveredRooms = peers
     .flatMap((p) => (p.rooms || []))
@@ -83,9 +84,16 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
               className={'text-sm px-3 py-2 rounded cursor-pointer flex items-center justify-between ' + (activeRoomId === r.roomId ? 'bg-gray-700 text-emerald-300' : 'hover:bg-gray-700 text-gray-300')}
             >
               <span className="truncate">{r.name}</span>
-              <span className={'text-[10px] px-1.5 py-0.5 rounded ' + (r.type === 'public' ? 'bg-blue-900 text-blue-300' : 'bg-red-900 text-red-300')}>
-                {r.type === 'public' ? 'Public' : 'Private'}
-              </span>
+              <div className="flex items-center gap-1.5">
+                {(unreadCounts[r.roomId] || 0) > 0 && (
+                  <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {unreadCounts[r.roomId]}
+                  </span>
+                )}
+                <span className={'text-[10px] px-1.5 py-0.5 rounded ' + (r.type === 'public' ? 'bg-blue-900 text-blue-300' : 'bg-red-900 text-red-300')}>
+                  {r.type === 'public' ? 'Public' : 'Private'}
+                </span>
+              </div>
             </li>
           ))}
           {rooms.length === 0 && <li className="text-xs text-gray-600 px-2">No rooms</li>}

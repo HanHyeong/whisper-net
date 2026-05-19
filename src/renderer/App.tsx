@@ -14,6 +14,7 @@ export default function App() {
     setPeers, setLocalPeerId, setLocalNickname, setSharedFolder, setRooms,
     addRoom, addMessage, setActiveRoom, activeRoomId,
     addTransfer, updateTransfer, removeTransfer,
+    unreadCounts, incrementUnread, clearUnread,
   } = useAppStore()
 
   const [showCreate, setShowCreate] = useState(false)
@@ -25,7 +26,13 @@ export default function App() {
 
   useEffect(() => {
     const unsubPeers = window.whisperAPI.onPeers((list) => setPeers(list))
-    const unsubMsg = window.whisperAPI.onMessage((msg) => addMessage(msg))
+    const unsubMsg = window.whisperAPI.onMessage((msg) => {
+      addMessage(msg)
+      // Increment unread if message is for a non-active room
+      if (msg.roomId !== activeRoomId) {
+        incrementUnread(msg.roomId)
+      }
+    })
     const unsubOffer = window.whisperAPI.onFileOffer((offer) => {
       const ok = window.confirm(`${offer.fromName} 님이 파일 "${offer.fileName}" (${(offer.fileSize / 1024).toFixed(1)}KB) 전송을 요청했습니다. 수락할까요?`)
       if (ok) {
@@ -145,7 +152,10 @@ export default function App() {
         peers={peers}
         rooms={rooms}
         activeRoomId={activeRoomId}
-        onSelectRoom={setActiveRoom}
+        onSelectRoom={(id) => {
+          setActiveRoom(id)
+          clearUnread(id)
+        }}
         onCreateRoom={() => setShowCreate(true)}
         onManualConnect={() => setShowManual(true)}
         onEditNickname={() => setShowNickname(true)}
@@ -155,6 +165,7 @@ export default function App() {
         onBrowsePeerFiles={handleBrowsePeerFiles}
         nickname={localNickname}
         sharedFolder={sharedFolder}
+        unreadCounts={unreadCounts}
       />
       <main className="flex-1 flex flex-col relative">
         {activeRoom ? (
