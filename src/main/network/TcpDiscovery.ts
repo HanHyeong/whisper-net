@@ -1,0 +1,282 @@
+import http from 'http'
+import { EventEmitter } from 'events'
+import { PeerInfo } from './protocol'
+import os from 'os'
+import fs from 'fs'
+import path from 'path'
+
+const DISCOVERY_PORT = 8080
+const PORT_RANGE = [8080, 8081, 8082, 8083]
+const SCAN_BATCH = 10
+const SCAN_TIMEOUT = 400
+
+interface KnownPeer {
+  peerId: string
+  nickname: string
+  ip: string
+  tcpPort: number
+  discoveryPort: number
+  rooms: PeerInfo['rooms']
+}
+
+export class TcpDiscovery extends EventEmitter {
+  private server: http.Server | null = null
+  private port = 0
+  private knownPeers = new Map<string, KnownPeer>()
+  private scanTimer: NodeJS.Timeout | null = null
+  private myInfo: { peerId: string; nickname: string; tcpPort: number; rooms: PeerInfo['rooms'] }
+  private sharedPath: string | null = null
+
+  constructor(peerId: string, nickname: string, tcpPort: number) {
+    super()
+    this.myInfo = { peerId, nickname, tcpPort, rooms: [] }
+  }
+
+  async start() {
+    for (const p of PORT_RANGE) {
+      try {
+        await this.tryListen(p)
+        this.port = p
+        break
+      } catch {
+        continue
+      }
+    }
+    if (this.port === 0) {
+      this.emit('error', new Error('No available discovery port'))
+      return
+    }
+
+    // initial scan + gossip loop
+    this.scanOnce()
+    this.scanTimer = setInterval(() => this.scanOnce(), 8000)
+  }
+
+  private tryListen(port: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const s = http.createServer((req, res) => {
+        res.setHeader('Content-Type', 'application/json')
+        if (req.url === '/whisper/peers' && req.method === 'GET') {
+          const body = JSON.stringify({
+            self: {
+              peerId: this.myInfo.peerId,
+              nickname: this.myInfo.nickname,
+              ip: this.getLocalIp(),
+              tcpPort: this.myInfo.tcpPort,
+              discoveryPort: this.port,
+              rooms: this.myInfo.rooms,
+            },
+            knownPeers: Array.from(this.knownPeers.values()),
+          })
+          res.writeHead(200)
+          res.end(body)
+        } else if (req.url === '/whisper/heartbeat' && req.method === 'POST') {
+          let data = ''
+          req.on('data', (c) => (data += c))
+          req.on('end', () => {
+            try {
+              const body = JSON.parse(data)
+              if (body.peerId && body.peerId !== this.myInfo.peerId) {
+                this.addPeer(body)
+              }
+            } catch {}
+            res.writeHead(200)
+            res.end('{}')
+          })
+        } else if (req.url === '/whisper/share' && req.method === 'GET') {
+          this.handleShareList(req, res)
+        } else if (req.url?.startsWith('/whisper/share/') && req.method === 'GET') {
+          this.handleShareDownload(req, res)
+        } else {
+          res.writeHead(404)
+          res.end()
+        }
+      })
+      s.listen(port, () => resolve())
+      s.on('error', (e) => reject(e))
+      this.server = s
+    })
+  }
+
+  private async scanOnce() {
+    const myIp = this.getLocalIp()
+    if (!myIp) return
+    const prefix = myIp.split('.').slice(0, 3).join('.')
+    const targets: string[] = []
+    for (let i = 1; i <= 254; i++) {
+      const ip = `${prefix}.${i}`
+      if (ip === myIp) continue
+      targets.push(ip)
+    }
+
+    // shuffle + batch
+    for (let i = targets.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [targets[i], targets[j]] = [targets[j], targets[i]]
+    }
+
+    for (let i = 0; i < targets.length; i += SCAN_BATCH) {
+      const batch = targets.slice(i, i + SCAN_BATCH)
+      await Promise.all(batch.map((ip) => this.probePeer(ip)))
+      await new Promise((r) => setTimeout(r, 80)) // gentle pacing
+    }
+  }
+
+  private async probePeer(ip: string): Promise<void> {
+    for (const port of PORT_RANGE) {
+      try {
+        const data = await this.httpGet(`http://${ip}:${port}/whisper/peers`)
+        const json = JSON.parse(data)
+        if (json.self && json.self.peerId !== this.myInfo.peerId) {
+          this.addPeer(json.self)
+          this.emit('peer:found', json.self)
+        }
+        // gossip: add peers they know
+        if (json.knownPeers) {
+          for (const p of json.knownPeers) {
+            if (p.peerId !== this.myInfo.peerId) {
+              this.addPeer(p)
+              this.emit('peer:found', p)
+            }
+          }
+        }
+        // send our heartbeat back
+        this.httpPost(`http://${ip}:${port}/whisper/heartbeat`, {
+          peerId: this.myInfo.peerId,
+          nickname: this.myInfo.nickname,
+          ip: this.getLocalIp(),
+          tcpPort: this.myInfo.tcpPort,
+          rooms: this.myInfo.rooms,
+        }).catch(() => {})
+        return
+      } catch {
+        continue
+      }
+    }
+  }
+
+  private httpGet(url: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const req = http.get(url, { timeout: SCAN_TIMEOUT }, (res) => {
+        let data = ''
+        res.on('data', (c) => (data += c))
+        res.on('end', () => resolve(data))
+      })
+      req.on('error', reject)
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
+    })
+  }
+
+  private async httpPost(url: string, body: object): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const u = new URL(url)
+      const data = JSON.stringify(body)
+      const req = http.request(
+        { hostname: u.hostname, port: Number(u.port), path: u.pathname, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }, timeout: SCAN_TIMEOUT },
+        (res) => {
+          let d = ''
+          res.on('data', (c) => (d += c))
+          res.on('end', () => resolve(d))
+        }
+      )
+      req.on('error', reject)
+      req.write(data)
+      req.end()
+    })
+  }
+
+  private addPeer(p: KnownPeer) {
+    this.knownPeers.set(p.peerId, p)
+  }
+
+  private getLocalIp(): string {
+    const ifaces = os.networkInterfaces()
+    for (const name of Object.keys(ifaces)) {
+      for (const iface of ifaces[name] || []) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address
+        }
+      }
+    }
+    return '127.0.0.1'
+  }
+
+  setNickname(nickname: string) {
+    this.myInfo.nickname = nickname
+  }
+
+  setSharedPath(p: string | null) {
+    this.sharedPath = p
+  }
+
+  getSharedPath(): string | null {
+    return this.sharedPath
+  }
+
+  setRooms(rooms: PeerInfo['rooms']) {
+    this.myInfo.rooms = rooms
+  }
+
+  getPeers(): KnownPeer[] {
+    return Array.from(this.knownPeers.values())
+  }
+
+  private handleShareList(req: http.IncomingMessage, res: http.ServerResponse) {
+    if (!this.sharedPath || !fs.existsSync(this.sharedPath)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'No shared folder' }))
+      return
+    }
+    try {
+      const entries = fs.readdirSync(this.sharedPath, { withFileTypes: true })
+      const files = entries
+        .filter((e) => e.isFile())
+        .map((e) => {
+          const stat = fs.statSync(path.join(this.sharedPath!, e.name))
+          return {
+            name: e.name,
+            size: stat.size,
+            modified: stat.mtime.getTime(),
+          }
+        })
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ sharedPath: this.sharedPath, files }))
+    } catch {
+      res.writeHead(500)
+      res.end()
+    }
+  }
+
+  private handleShareDownload(req: http.IncomingMessage, res: http.ServerResponse) {
+    if (!this.sharedPath) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
+    const fileName = decodeURIComponent(req.url!.replace('/whisper/share/', ''))
+    const filePath = path.join(this.sharedPath, fileName)
+    // Security: prevent directory traversal
+    if (!filePath.startsWith(this.sharedPath)) {
+      res.writeHead(403)
+      res.end()
+      return
+    }
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
+    const stat = fs.statSync(filePath)
+    res.writeHead(200, {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stat.size,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+    })
+    fs.createReadStream(filePath).pipe(res)
+  }
+
+  stop() {
+    if (this.scanTimer) clearInterval(this.scanTimer)
+    this.server?.close()
+  }
+}
