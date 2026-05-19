@@ -20,8 +20,8 @@ const api = {
   setSharedFolder: (path?: string | null) => ipcRenderer.invoke('app:set-shared-folder', path),
   getSharedFolder: () => ipcRenderer.invoke('app:get-shared-folder'),
   rendererReady: () => ipcRenderer.send('app:renderer-ready'),
-  listPeerFiles: (ip: string, discoveryPort: number) => ipcRenderer.invoke('net:list-peer-files', ip, discoveryPort),
-  downloadPeerFiles: (ip: string, discoveryPort: number, files: string[], destDir: string) => ipcRenderer.invoke('net:download-peer-files', ip, discoveryPort, files, destDir),
+  listPeerFiles: (ip: string, discoveryPort: number, relativePath?: string) => ipcRenderer.invoke('net:list-peer-files', ip, discoveryPort, relativePath),
+  downloadPeerFiles: (ip: string, discoveryPort: number, files: string[], destDir: string, basePath?: string) => ipcRenderer.invoke('net:download-peer-files', ip, discoveryPort, files, destDir, basePath),
 
   onPeers: (cb: (peers: any[]) => void) => {
     const handler = (_: any, peers: any[]) => cb(peers)

@@ -184,9 +184,10 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   })
 
   // List peer shared files
-  ipcMain.handle('net:list-peer-files', async (_, ip: string, discoveryPort: number) => {
+  ipcMain.handle('net:list-peer-files', async (_, ip: string, discoveryPort: number, relativePath?: string) => {
     try {
-      const data = await httpGet(`http://${ip}:${discoveryPort}/whisper/share`, 3000)
+      const qs = relativePath ? `?path=${encodeURIComponent(relativePath)}` : ''
+      const data = await httpGet(`http://${ip}:${discoveryPort}/whisper/share${qs}`, 3000)
       return JSON.parse(data)
     } catch {
       return null
@@ -194,11 +195,12 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   })
 
   // Download multiple files from peer
-  ipcMain.handle('net:download-peer-files', async (_, ip: string, discoveryPort: number, files: string[], destDir: string) => {
+  ipcMain.handle('net:download-peer-files', async (_, ip: string, discoveryPort: number, files: string[], destDir: string, basePath?: string) => {
     const downloads: { fileName: string; status: 'ok' | 'error' }[] = []
     for (const fileName of files) {
       try {
-        await downloadFile(ip, discoveryPort, fileName, path.join(destDir, fileName))
+        const remotePath = basePath ? `${basePath}/${fileName}` : fileName
+        await downloadFile(ip, discoveryPort, remotePath, path.join(destDir, fileName))
         downloads.push({ fileName, status: 'ok' })
       } catch {
         downloads.push({ fileName, status: 'error' })

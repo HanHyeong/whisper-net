@@ -246,19 +246,38 @@ export class TcpDiscovery extends EventEmitter {
       return
     }
     try {
-      const entries = fs.readdirSync(this.sharedPath, { withFileTypes: true })
-      const files = entries
-        .filter((e) => e.isFile())
-        .map((e) => {
-          const stat = fs.statSync(path.join(this.sharedPath!, e.name))
-          return {
-            name: e.name,
-            size: stat.size,
-            modified: stat.mtime.getTime(),
-          }
-        })
+      // Parse ?path= query for subfolder navigation
+      const url = new URL(req.url!, `http://${req.headers.host}`)
+      const relativePath = decodeURIComponent(url.searchParams.get('path') || '')
+      const targetPath = path.join(this.sharedPath, relativePath)
+
+      // Path traversal guard
+      const resolvedShared = path.resolve(this.sharedPath)
+      const resolvedTarget = path.resolve(targetPath)
+      if (!resolvedTarget.startsWith(resolvedShared)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Access denied' }))
+        return
+      }
+
+      if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isDirectory()) {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Not found' }))
+        return
+      }
+
+      const entries = fs.readdirSync(targetPath, { withFileTypes: true })
+      const items = entries.map((e) => {
+        const stat = fs.statSync(path.join(targetPath, e.name))
+        return {
+          name: e.name,
+          size: stat.size,
+          modified: stat.mtime.getTime(),
+          isDirectory: e.isDirectory(),
+        }
+      })
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ sharedPath: this.sharedPath, files }))
+      res.end(JSON.stringify({ sharedPath: this.sharedPath, currentPath: relativePath, items }))
     } catch {
       res.writeHead(500)
       res.end()
