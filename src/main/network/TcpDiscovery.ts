@@ -24,8 +24,11 @@ export class TcpDiscovery extends EventEmitter {
   private port = 0
   private knownPeers = new Map<string, KnownPeer>()
   private scanTimer: NodeJS.Timeout | null = null
+  private cleanupTimer: NodeJS.Timeout | null = null
+  private lastSeen = new Map<string, number>()
   private myInfo: { peerId: string; nickname: string; tcpPort: number; rooms: PeerInfo['rooms'] }
   private sharedPath: string | null = null
+  private readonly PEER_TIMEOUT = 15000
 
   constructor(peerId: string, nickname: string, tcpPort: number) {
     super()
@@ -50,6 +53,7 @@ export class TcpDiscovery extends EventEmitter {
     // initial scan + gossip loop
     this.scanOnce()
     this.scanTimer = setInterval(() => this.scanOnce(), 8000)
+    this.startCleanup()
   }
 
   private tryListen(port: number): Promise<void> {
@@ -187,6 +191,20 @@ export class TcpDiscovery extends EventEmitter {
 
   private addPeer(p: KnownPeer) {
     this.knownPeers.set(p.peerId, p)
+    this.lastSeen.set(p.peerId, Date.now())
+  }
+
+  private startCleanup() {
+    this.cleanupTimer = setInterval(() => {
+      const now = Date.now()
+      for (const [id, last] of this.lastSeen) {
+        if (now - last > this.PEER_TIMEOUT) {
+          this.knownPeers.delete(id)
+          this.lastSeen.delete(id)
+          this.emit('peer:left', id)
+        }
+      }
+    }, 5000)
   }
 
   private getLocalIp(): string {
@@ -277,6 +295,7 @@ export class TcpDiscovery extends EventEmitter {
 
   stop() {
     if (this.scanTimer) clearInterval(this.scanTimer)
+    if (this.cleanupTimer) clearInterval(this.cleanupTimer)
     this.server?.close()
   }
 }

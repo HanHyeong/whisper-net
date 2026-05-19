@@ -24,6 +24,13 @@ export class DiscoveryManager extends EventEmitter {
 
   async start() {
     this.tcp.on('peer:found', (p) => this.handlePeer(p))
+    this.tcp.on('peer:left', (peerId) => {
+      if (this.peers.has(peerId)) {
+        this.peers.delete(peerId)
+        this.emit('peer:left', peerId)
+        this.emitPeers()
+      }
+    })
     this.tcp.on('error', () => {
       this.activateMdns()
     })
