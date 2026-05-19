@@ -87,6 +87,11 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   // Auto-load shared folder from config on startup
   if (initialSharedPath) {
     network.setSharedPath(initialSharedPath)
+    // Clean up room files on startup (ephemeral)
+    const roomsFilesPath = path.join(initialSharedPath, '_roomsFiles')
+    try {
+      fs.rmSync(roomsFilesPath, { recursive: true, force: true })
+    } catch {}
   }
 
   // IPC handlers
@@ -109,6 +114,53 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   })
   ipcMain.handle('net:send-text', (_, roomId: string, content: string) => {
     network?.sendText(roomId, content)
+  })
+
+  // File attachment via shared folder (max 10MB)
+  ipcMain.handle('net:send-file-attachment', async (_, roomId: string) => {
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile'] })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const filePath = result.filePaths[0]
+    const stat = fs.statSync(filePath)
+    const MAX_SIZE = 10 * 1024 * 1024
+    if (stat.size > MAX_SIZE) {
+      return { error: '10MB 초과. 공유 폴터를 이용해주세요.' }
+    }
+    const sharedPath = network?.getSharedPath() || initialSharedPath
+    if (!sharedPath) {
+      return { error: '공유 폴터가 설정되지 않았습니다.' }
+    }
+    const messageId = randomUUID()
+    const destDir = path.join(sharedPath, '_roomsFiles', roomId, messageId)
+    fs.mkdirSync(destDir, { recursive: true })
+    const destPath = path.join(destDir, path.basename(filePath))
+    fs.copyFileSync(filePath, destPath)
+    const checksum = createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')
+    network?.sendFileAttachment(roomId, path.basename(filePath), stat.size, checksum, messageId)
+    return {
+      messageId,
+      fileName: path.basename(filePath),
+      fileSize: stat.size,
+      checksum,
+    }
+  })
+
+  // Download attachment from peer's shared folder
+  ipcMain.handle('net:download-attachment', async (_, roomId: string, messageId: string, fileName: string, senderIp: string, senderDiscoveryPort: number) => {
+    const sharedPath = network?.getSharedPath() || initialSharedPath
+    if (!sharedPath) {
+      return { error: '공유 폴터가 설정되지 않았습니다.' }
+    }
+    const destDir = path.join(sharedPath, '_roomsFiles', roomId, messageId)
+    fs.mkdirSync(destDir, { recursive: true })
+    const destPath = path.join(destDir, fileName)
+    const remotePath = `_roomsFiles/${roomId}/${messageId}/${fileName}`
+    try {
+      await downloadFile(senderIp, senderDiscoveryPort, remotePath, destPath)
+      return { localPath: destPath }
+    } catch (err: any) {
+      return { error: err.message || '다운로드 실패' }
+    }
   })
   ipcMain.handle('net:get-peers', () => {
     return network?.getPeers() ?? []
@@ -293,6 +345,14 @@ app.on('window-all-closed', () => {
     if (t.writeStream) t.writeStream.destroy()
   }
   activeTransfers.clear()
+  // Clean up room files on exit
+  const cfg = loadConfig()
+  if (cfg.sharedPath) {
+    const roomsFilesPath = path.join(cfg.sharedPath, '_roomsFiles')
+    try {
+      fs.rmSync(roomsFilesPath, { recursive: true, force: true })
+    } catch {}
+  }
   network?.stop()
   if (process.platform !== 'darwin') app.quit()
 })

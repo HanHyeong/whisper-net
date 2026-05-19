@@ -88,6 +88,10 @@ export class DiscoveryManager extends EventEmitter {
     this.mdns?.setNickname?.(nickname)
   }
 
+  getSharedPath(): string | null {
+    return this.tcp.getSharedPath()
+  }
+
   setSharedPath(p: string | null) {
     this.tcp.setSharedPath(p)
   }

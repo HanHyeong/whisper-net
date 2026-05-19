@@ -8,6 +8,7 @@ import {
   TextMessagePayload,
   JoinRoomPayload,
   RoomMembersPayload,
+  FileAttachmentPayload,
   FileOfferPayload,
   FileChunkPayload,
 } from './protocol'
@@ -19,6 +20,15 @@ export interface LocalPeer {
   tcpPort: number
 }
 
+export interface AttachmentInfo {
+  fileName: string
+  fileSize: number
+  checksum: string
+  senderId: string
+  messageId: string
+  localPath?: string
+}
+
 export interface ChatMessage {
   id: string
   roomId: string
@@ -26,6 +36,7 @@ export interface ChatMessage {
   senderName: string
   content: string
   timestamp: number
+  attachment?: AttachmentInfo
 }
 
 export interface Room {
@@ -150,6 +161,31 @@ export class NetworkManager extends EventEmitter {
         })
         break
       }
+      case 'file_attachment': {
+        const p = msg.payload as FileAttachmentPayload
+        const chat: ChatMessage = {
+          id: randomUUID(),
+          roomId: p.roomId,
+          senderId: msg.peerId,
+          senderName: msg.nickname,
+          content: `📎 ${p.fileName}`,
+          timestamp: msg.timestamp,
+          attachment: {
+            fileName: p.fileName,
+            fileSize: p.fileSize,
+            checksum: p.checksum,
+            senderId: msg.peerId,
+            messageId: p.messageId,
+          },
+        }
+        const room = this.rooms.get(p.roomId)
+        if (room) {
+          room.messages.push(chat)
+          this.emit('message', chat)
+          this.broadcastToRoom(p.roomId, msg, msg.peerId)
+        }
+        break
+      }
       case 'room_members': {
         const p = msg.payload as RoomMembersPayload
         const room = this.rooms.get(p.roomId)
@@ -223,6 +259,36 @@ export class NetworkManager extends EventEmitter {
     }
   }
 
+  sendFileAttachment(roomId: string, fileName: string, fileSize: number, checksum: string, messageId: string) {
+    const msg: ProtocolMessage = {
+      type: 'file_attachment',
+      peerId: this.local.peerId,
+      nickname: this.local.nickname,
+      timestamp: Date.now(),
+      payload: { roomId, fileName, fileSize, checksum, messageId } as FileAttachmentPayload,
+    }
+    const room = this.rooms.get(roomId)
+    if (!room) return
+    const chat: ChatMessage = {
+      id: randomUUID(),
+      roomId,
+      senderId: this.local.peerId,
+      senderName: this.local.nickname,
+      content: `📎 ${fileName}`,
+      timestamp: Date.now(),
+      attachment: {
+        fileName,
+        fileSize,
+        checksum,
+        senderId: this.local.peerId,
+        messageId,
+      },
+    }
+    room.messages.push(chat)
+    this.broadcastToRoom(roomId, msg)
+    this.emit('message', chat)
+  }
+
   sendText(roomId: string, content: string) {
     const messageId = randomUUID()
     const msg: ProtocolMessage = {
@@ -280,6 +346,10 @@ export class NetworkManager extends EventEmitter {
   updateNickname(nickname: string) {
     this.local.nickname = nickname
     this.discovery.setNickname?.(nickname)
+  }
+
+  getSharedPath(): string | null {
+    return this.discovery.getSharedPath()
   }
 
   setSharedPath(p: string | null) {

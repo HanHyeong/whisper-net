@@ -9,6 +9,15 @@ export interface Peer {
   rooms: any[]
 }
 
+export interface AttachmentInfo {
+  fileName: string
+  fileSize: number
+  checksum: string
+  senderId: string
+  messageId: string
+  localPath?: string
+}
+
 export interface ChatMessage {
   id: string
   roomId: string
@@ -16,6 +25,7 @@ export interface ChatMessage {
   senderName: string
   content: string
   timestamp: number
+  attachment?: AttachmentInfo
 }
 
 export interface Room {
@@ -59,6 +69,7 @@ interface AppState {
   removeTransfer: (id: string) => void
   incrementUnread: (roomId: string) => void
   clearUnread: (roomId: string) => void
+  updateMessageAttachment: (roomId: string, messageId: string, localPath: string) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -81,6 +92,21 @@ export const useAppStore = create<AppState>((set) => ({
       rooms: state.rooms.map((r) =>
         r.roomId === msg.roomId
           ? { ...r, messages: [...r.messages, msg] }
+          : r
+      ),
+    })),
+  updateMessageAttachment: (roomId: string, messageId: string, localPath: string) =>
+    set((state) => ({
+      rooms: state.rooms.map((r) =>
+        r.roomId === roomId
+          ? {
+              ...r,
+              messages: r.messages.map((m) =>
+                m.attachment?.messageId === messageId
+                  ? { ...m, attachment: { ...m.attachment, localPath } }
+                  : m
+              ),
+            }
           : r
       ),
     })),

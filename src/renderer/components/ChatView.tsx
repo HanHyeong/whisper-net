@@ -4,9 +4,21 @@ import { Room, ChatMessage, useAppStore } from '../stores/appStore'
 interface Props {
   room: Room
   onSendFile: (peerId: string) => void
+  onSendFileAttachment: () => void
+  onDownloadAttachment: (msg: ChatMessage) => void
 }
 
-export default function ChatView({ room, onSendFile }: Props) {
+function isImageFile(fileName: string): boolean {
+  return /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName)
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+export default function ChatView({ room, onSendFile, onSendFileAttachment, onDownloadAttachment }: Props) {
   const { localPeerId } = useAppStore()
   const [text, setText] = useState('')
   const [dragOver, setDragOver] = useState(false)
@@ -30,7 +42,6 @@ export default function ChatView({ room, onSendFile }: Props) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
-    // For simplicity, send to first other member in room
     const target = room.members.find((m) => m !== localPeerId)
     if (target) {
       onSendFile(target)
@@ -57,14 +68,23 @@ export default function ChatView({ room, onSendFile }: Props) {
           <h3 className="font-semibold">{room.name}</h3>
           <span className="text-xs text-gray-500">{room.members.length}명 참여중 · {room.type === 'public' ? '개방형' : '비밀형'}</span>
         </div>
-        {otherMembers.length === 1 && (
+        <div className="flex gap-2">
           <button
-            onClick={() => onSendFile(otherMembers[0])}
+            onClick={onSendFileAttachment}
             className="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded border border-gray-600"
+            title="대화에 파일 첨부 (10MB 이하)"
           >
-            📎 파일 별내기
+            📎 파일 첨부
           </button>
-        )}
+          {otherMembers.length === 1 && (
+            <button
+              onClick={() => onSendFile(otherMembers[0])}
+              className="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded border border-gray-600"
+            >
+              📎 파일 별내기
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -72,7 +92,39 @@ export default function ChatView({ room, onSendFile }: Props) {
           <div key={msg.id} className={`flex ${msg.senderId === localPeerId ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-md px-3 py-2 rounded-lg text-sm ${msg.senderId === localPeerId ? 'bg-emerald-700 text-white' : 'bg-gray-700 text-gray-100'}`}>
               {msg.senderId !== localPeerId && <div className="text-xs text-emerald-400 mb-1">{msg.senderName}</div>}
-              <div>{msg.content}</div>
+
+              {msg.attachment ? (
+                <div className="space-y-2">
+                  {isImageFile(msg.attachment.fileName) && msg.attachment.localPath ? (
+                    <img
+                      src={`file://${msg.attachment.localPath}`}
+                      alt={msg.attachment.fileName}
+                      className="max-w-[240px] max-h-[180px] rounded object-contain"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  ) : null}
+                  <div className="flex items-center gap-2 bg-black/20 rounded px-2 py-1.5">
+                    <span className="text-lg">{isImageFile(msg.attachment.fileName) ? '🖼️' : '📄'}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate text-sm">{msg.attachment.fileName}</div>
+                      <div className="text-[10px] opacity-70">{formatFileSize(msg.attachment.fileSize)}</div>
+                    </div>
+                    {msg.attachment.localPath ? (
+                      <span className="text-[10px] bg-emerald-600 px-2 py-0.5 rounded">✓ 받음</span>
+                    ) : (
+                      <button
+                        onClick={() => onDownloadAttachment(msg)}
+                        className="text-[10px] bg-blue-600 hover:bg-blue-500 px-2 py-0.5 rounded"
+                      >
+                        다운로드
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>{msg.content}</div>
+              )}
+
               <div className="text-[10px] text-right mt-1 opacity-60">{formatTime(msg.timestamp)}</div>
             </div>
           </div>

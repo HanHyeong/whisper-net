@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useAppStore, Peer } from './stores/appStore'
+import { useAppStore, Peer, ChatMessage } from './stores/appStore'
 import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
 import CreateRoomModal from './components/CreateRoomModal'
@@ -15,6 +15,7 @@ export default function App() {
     addRoom, addMessage, setActiveRoom, activeRoomId,
     addTransfer, updateTransfer, removeTransfer,
     unreadCounts, incrementUnread, clearUnread,
+    updateMessageAttachment,
   } = useAppStore()
 
   const [showCreate, setShowCreate] = useState(false)
@@ -124,6 +125,37 @@ export default function App() {
     }
   }
 
+  const handleSendFileAttachment = async () => {
+    if (!activeRoomId) return
+    const res: any = await window.whisperAPI.sendFileAttachment(activeRoomId)
+    if (res?.error) {
+      alert(res.error)
+    }
+  }
+
+  const handleDownloadAttachment = async (msg: ChatMessage) => {
+    if (!msg.attachment) return
+    const senderPeer = peers.find((p) => p.peerId === msg.attachment!.senderId)
+    if (!senderPeer) {
+      alert('발신자를 찾을 수 없습니다.')
+      return
+    }
+    const result: any = await window.whisperAPI.downloadAttachment(
+      msg.roomId,
+      msg.attachment.messageId,
+      msg.attachment.fileName,
+      senderPeer.ip,
+      senderPeer.discoveryPort
+    )
+    if (result?.error) {
+      alert(result.error)
+      return
+    }
+    if (result?.localPath) {
+      updateMessageAttachment(msg.roomId, msg.attachment.messageId, result.localPath)
+    }
+  }
+
   const handleJoinRoom = (roomId: string, password?: string) => {
     const name = pendingJoinRoom?.name
     const type = pendingJoinRoom?.type
@@ -175,7 +207,12 @@ export default function App() {
       />
       <main className="flex-1 flex flex-col relative">
         {activeRoom ? (
-          <ChatView room={activeRoom} onSendFile={handleSendFile} />
+          <ChatView
+            room={activeRoom}
+            onSendFile={handleSendFile}
+            onSendFileAttachment={handleSendFileAttachment}
+            onDownloadAttachment={handleDownloadAttachment}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
             <div className="text-center">

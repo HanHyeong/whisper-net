@@ -10,6 +10,10 @@ const api = {
     ipcRenderer.invoke('net:join-room', roomId, password, name, type),
   sendText: (roomId: string, content: string) =>
     ipcRenderer.invoke('net:send-text', roomId, content),
+  sendFileAttachment: (roomId: string) =>
+    ipcRenderer.invoke('net:send-file-attachment', roomId),
+  downloadAttachment: (roomId: string, messageId: string, fileName: string, senderIp: string, senderDiscoveryPort: number) =>
+    ipcRenderer.invoke('net:download-attachment', roomId, messageId, fileName, senderIp, senderDiscoveryPort),
   getPeers: () => ipcRenderer.invoke('net:get-peers'),
   getRooms: () => ipcRenderer.invoke('net:get-rooms'),
   connectPeer: (ip: string, port: number) => ipcRenderer.invoke('net:connect-peer', ip, port),

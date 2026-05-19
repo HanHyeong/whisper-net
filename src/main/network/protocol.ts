@@ -23,6 +23,7 @@ export type MessageType =
   | 'leave_room'
   | 'room_members'
   | 'text_message'
+  | 'file_attachment'
   | 'file_offer'
   | 'file_accept'
   | 'file_reject'
@@ -61,6 +62,14 @@ export interface FileOfferPayload {
   fileName: string
   fileSize: number
   mimeType: string
+}
+
+export interface FileAttachmentPayload {
+  roomId: string
+  fileName: string
+  fileSize: number
+  checksum: string
+  messageId: string
 }
 
 export interface FileChunkPayload {
