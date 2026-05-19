@@ -84,7 +84,14 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
                   ) : null}
                   <div
                     className="flex items-center gap-2 bg-black/20 rounded px-2 py-1.5 cursor-pointer"
-                    onClick={() => msg.attachment?.localPath && window.whisperAPI.openFile(msg.attachment.localPath)}
+                    onClick={() => {
+                      if (!msg.attachment?.localPath) return
+                      if (isImageFile(msg.attachment.fileName)) {
+                        window.whisperAPI.openFile(msg.attachment.localPath)
+                      } else {
+                        window.whisperAPI.showInFolder(msg.attachment.localPath)
+                      }
+                    }}
                   >
                     <span className="text-lg">{isImageFile(msg.attachment.fileName) ? '🖼️' : '📄'}</span>
                     <div className="flex-1 min-w-0">

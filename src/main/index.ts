@@ -257,6 +257,9 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   ipcMain.handle('app:open-file', (_, filePath: string) => {
     shell.openPath(filePath)
   })
+  ipcMain.handle('app:show-in-folder', (_, filePath: string) => {
+    shell.showItemInFolder(filePath)
+  })
 
   // List peer shared files
   ipcMain.handle('net:list-peer-files', async (_, ip: string, discoveryPort: number, relativePath?: string) => {
