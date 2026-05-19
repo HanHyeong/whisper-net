@@ -276,15 +276,21 @@ export class TcpDiscovery extends EventEmitter {
       }
 
       const entries = fs.readdirSync(targetPath, { withFileTypes: true })
-      const items = entries.map((e) => {
-        const stat = fs.statSync(path.join(targetPath, e.name))
-        return {
-          name: e.name,
-          size: stat.size,
-          modified: stat.mtime.getTime(),
-          isDirectory: e.isDirectory(),
-        }
-      })
+      const items = entries
+        .map((e) => {
+          const stat = fs.statSync(path.join(targetPath, e.name))
+          return {
+            name: e.name,
+            size: stat.size,
+            modified: stat.mtime.getTime(),
+            isDirectory: e.isDirectory(),
+          }
+        })
+        .sort((a, b) => {
+          if (a.isDirectory && !b.isDirectory) return -1
+          if (!a.isDirectory && b.isDirectory) return 1
+          return a.name.localeCompare(b.name)
+        })
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ sharedPath: this.sharedPath, currentPath: relativePath, items }))
     } catch {
