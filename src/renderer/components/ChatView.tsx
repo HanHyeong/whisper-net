@@ -109,7 +109,7 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
                   </div>
                 </div>
               ) : (
-                <div>{msg.content}</div>
+                <div className="whitespace-pre-wrap">{msg.content}</div>
               )}
 
               <div className="text-[10px] text-right mt-1 opacity-60">{formatTime(msg.timestamp)}</div>
