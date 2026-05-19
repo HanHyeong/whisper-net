@@ -7,6 +7,7 @@ import {
   ProtocolMessage,
   TextMessagePayload,
   JoinRoomPayload,
+  RoomMembersPayload,
   FileOfferPayload,
   FileChunkPayload,
 } from './protocol'
@@ -134,22 +135,29 @@ export class NetworkManager extends EventEmitter {
           }
         }
         room.members.add(msg.peerId)
-        // sync members
+        // sync members + room info
         this.broadcastToRoom(p.roomId, {
           type: 'room_members',
           peerId: this.local.peerId,
           nickname: this.local.nickname,
           timestamp: Date.now(),
-          payload: { roomId: p.roomId, members: Array.from(room.members) },
+          payload: {
+            roomId: p.roomId,
+            members: Array.from(room.members),
+            name: room.name,
+            type: room.type,
+          } as RoomMembersPayload,
         })
         break
       }
       case 'room_members': {
-        const roomId = (msg.payload as any).roomId as string
-        const members = (msg.payload as any).members as string[]
-        const room = this.rooms.get(roomId)
+        const p = msg.payload as RoomMembersPayload
+        const room = this.rooms.get(p.roomId)
         if (room) {
-          members.forEach((m) => room.members.add(m))
+          p.members.forEach((m) => room.members.add(m))
+          // Update room name/type from owner
+          if (p.name) room.name = p.name
+          if (p.type) room.type = p.type
         }
         break
       }
@@ -180,7 +188,7 @@ export class NetworkManager extends EventEmitter {
     return room
   }
 
-  joinRoom(roomId: string, password?: string) {
+  joinRoom(roomId: string, password?: string, name?: string, type?: 'public' | 'private') {
     const room = this.rooms.get(roomId)
     if (room) {
       room.members.add(this.local.peerId)
@@ -203,9 +211,10 @@ export class NetworkManager extends EventEmitter {
         // create local stub until ack
         const stub: Room = {
           roomId,
-          name: 'Unknown',
-          type: 'public',
-          members: new Set([this.local.peerId]),
+          name: name || 'Unknown',
+          type: type || 'public',
+          // include owner peerId so we can send messages to them immediately
+          members: new Set([this.local.peerId, peer.peerId]),
           messages: [],
         }
         this.rooms.set(roomId, stub)

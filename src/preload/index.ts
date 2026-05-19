@@ -6,8 +6,8 @@ const api = {
 
   createRoom: (name: string, type: 'public' | 'private', password?: string) =>
     ipcRenderer.invoke('net:create-room', name, type, password),
-  joinRoom: (roomId: string, password?: string) =>
-    ipcRenderer.invoke('net:join-room', roomId, password),
+  joinRoom: (roomId: string, password?: string, name?: string, type?: 'public' | 'private') =>
+    ipcRenderer.invoke('net:join-room', roomId, password, name, type),
   sendText: (roomId: string, content: string) =>
     ipcRenderer.invoke('net:send-text', roomId, content),
   getPeers: () => ipcRenderer.invoke('net:get-peers'),

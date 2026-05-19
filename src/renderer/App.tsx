@@ -103,7 +103,7 @@ export default function App() {
 
   const handleRequestJoinRoom = (roomId: string, name: string, type: 'public' | 'private') => {
     if (type === 'public') {
-      window.whisperAPI.joinRoom(roomId)
+      window.whisperAPI.joinRoom(roomId, undefined, name, type)
       window.whisperAPI.getRooms().then((list: any) => setRooms(list))
     } else {
       setPendingJoinRoom({ roomId, name, type })
@@ -112,7 +112,9 @@ export default function App() {
   }
 
   const handleJoinRoom = (roomId: string, password?: string) => {
-    window.whisperAPI.joinRoom(roomId, password)
+    const name = pendingJoinRoom?.name
+    const type = pendingJoinRoom?.type
+    window.whisperAPI.joinRoom(roomId, password, name, type)
     window.whisperAPI.getRooms().then((list: any) => setRooms(list))
   }
 

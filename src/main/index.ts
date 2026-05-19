@@ -95,8 +95,8 @@ function createWindow(initialNickname: string) {
     if (!room) return null
     return { ...room, members: Array.from(room.members) }
   })
-  ipcMain.handle('net:join-room', (_, roomId: string, password?: string) => {
-    network?.joinRoom(roomId, password)
+  ipcMain.handle('net:join-room', (_, roomId: string, password?: string, name?: string, type?: 'public' | 'private') => {
+    network?.joinRoom(roomId, password, name, type)
   })
   ipcMain.handle('net:send-text', (_, roomId: string, content: string) => {
     network?.sendText(roomId, content)

@@ -49,6 +49,13 @@ export interface JoinRoomPayload {
   passwordHash?: string
 }
 
+export interface RoomMembersPayload {
+  roomId: string
+  members: string[]
+  name: string
+  type: 'public' | 'private'
+}
+
 export interface FileOfferPayload {
   transferId: string
   fileName: string
