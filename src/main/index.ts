@@ -136,12 +136,24 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
     const destPath = path.join(destDir, path.basename(filePath))
     fs.copyFileSync(filePath, destPath)
     const checksum = createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')
-    network?.sendFileAttachment(roomId, path.basename(filePath), stat.size, checksum, messageId)
+
+    // Generate data URL for images so sender sees thumbnail immediately
+    let dataUrl: string | undefined
+    const ext = path.extname(filePath).toLowerCase()
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext)) {
+      const buf = fs.readFileSync(destPath)
+      const mime = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : ext === '.webp' ? 'image/webp' : 'image/jpeg'
+      dataUrl = `data:${mime};base64,${buf.toString('base64')}`
+    }
+
+    network?.sendFileAttachment(roomId, path.basename(filePath), stat.size, checksum, messageId, destPath, dataUrl)
     return {
       messageId,
       fileName: path.basename(filePath),
       fileSize: stat.size,
       checksum,
+      localPath: destPath,
+      dataUrl,
     }
   })
 

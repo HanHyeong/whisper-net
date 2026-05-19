@@ -260,7 +260,7 @@ export class NetworkManager extends EventEmitter {
     }
   }
 
-  sendFileAttachment(roomId: string, fileName: string, fileSize: number, checksum: string, messageId: string) {
+  sendFileAttachment(roomId: string, fileName: string, fileSize: number, checksum: string, messageId: string, localPath: string, dataUrl?: string) {
     const msg: ProtocolMessage = {
       type: 'file_attachment',
       peerId: this.local.peerId,
@@ -283,6 +283,8 @@ export class NetworkManager extends EventEmitter {
         checksum,
         senderId: this.local.peerId,
         messageId,
+        localPath,
+        dataUrl,
       },
     }
     room.messages.push(chat)
