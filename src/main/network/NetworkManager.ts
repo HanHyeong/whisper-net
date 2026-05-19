@@ -80,9 +80,9 @@ export class NetworkManager extends EventEmitter {
       this.peers.set(info.peerId, info)
       this.emit('peers', this.getPeers())
     })
-    this.discovery.on('peer:left', (info) => {
-      this.peers.delete(info.peerId)
-      this.client.disconnect(info.peerId)
+    this.discovery.on('peer:left', (peerId) => {
+      this.peers.delete(peerId)
+      this.client.disconnect(peerId)
       this.emit('peers', this.getPeers())
     })
   }
