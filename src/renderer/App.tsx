@@ -73,6 +73,8 @@ export default function App() {
       setTimeout(() => removeTransfer(info.transferId), 4000)
     })
 
+    window.whisperAPI.rendererReady?.()
+
     window.whisperAPI.getConfig().then((cfg: any) => {
       if (!cfg?.nickname) {
         setShowNickname(true)

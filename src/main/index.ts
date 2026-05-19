@@ -77,6 +77,10 @@ function createWindow(initialNickname: string) {
   win.webContents.on('did-finish-load', () => {
     win.webContents.send('network:local', { peerId, nickname: initialNickname })
   })
+  // Fallback: Windows may fire did-finish-load before renderer listener is ready
+  ipcMain.once('app:renderer-ready', () => {
+    win.webContents.send('network:local', { peerId, nickname: initialNickname })
+  })
 
   network.start()
 
