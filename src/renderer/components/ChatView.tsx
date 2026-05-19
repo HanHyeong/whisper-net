@@ -106,17 +106,18 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
       </div>
 
       <div className="p-3 border-t border-gray-700 bg-gray-800 flex gap-2">
-        <input
+        <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing && !e.shiftKey) {
               e.preventDefault()
               send()
             }
           }}
           placeholder="메시지를 입력하세요..."
-          className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+          rows={1}
+          className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none"
         />
         <button onClick={send} className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded text-sm font-medium">전송</button>
       </div>
