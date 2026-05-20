@@ -52,6 +52,11 @@ const api = {
     ipcRenderer.on('network:file:chunk', handler)
     return () => ipcRenderer.removeListener('network:file:chunk', handler)
   },
+  onRooms: (cb: (rooms: any[]) => void) => {
+    const handler = (_: any, rooms: any[]) => cb(rooms)
+    ipcRenderer.on('network:rooms', handler)
+    return () => ipcRenderer.removeListener('network:rooms', handler)
+  },
   onLocal: (cb: (info: { peerId: string; nickname: string }) => void) => {
     const handler = (_: any, info: any) => cb(info)
     ipcRenderer.on('network:local', handler)
