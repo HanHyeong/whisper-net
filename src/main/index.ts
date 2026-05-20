@@ -63,6 +63,15 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   })
   network.on('message', (msg) => {
     sendToRenderer('network:message', msg)
+    // Flash taskbar (Windows) or bounce dock (macOS) when not focused
+    if (!win.isDestroyed() && !win.isFocused()) {
+      if (process.platform === 'win32') {
+        win.flashFrame(true)
+      }
+      if (process.platform === 'darwin' && app.dock) {
+        app.dock.bounce('informational')
+      }
+    }
   })
   network.on('file:offer', (offer) => {
     sendToRenderer('network:file:offer', offer)
@@ -307,6 +316,12 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
       }
     }
     return downloads
+  })
+
+  win.on('focus', () => {
+    if (process.platform === 'win32') {
+      win.flashFrame(false)
+    }
   })
 
   return win
