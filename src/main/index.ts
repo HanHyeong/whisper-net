@@ -370,6 +370,9 @@ function downloadFile(ip: string, port: number, fileName: string, destPath: stri
 }
 
 app.whenReady().then(() => {
+  // Remove default menu bar (File, Edit, View, etc.) — not needed for this app
+  Menu.setApplicationMenu(null)
+
   const cfg = loadConfig()
   const nickname = cfg.nickname || ''
   createWindow(nickname, cfg.sharedPath)
@@ -395,5 +398,5 @@ app.on('window-all-closed', () => {
     } catch {}
   }
   network?.stop()
-  if (process.platform !== 'darwin') app.quit()
+  app.quit()
 })
