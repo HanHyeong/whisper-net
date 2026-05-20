@@ -1,6 +1,9 @@
-import 'dotenv/config'
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
+import dotenv from 'dotenv'
+// Load .env from project root (works in both dev and production builds)
+dotenv.config({ path: path.join(__dirname, '../../.env') })
+
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import fs from 'fs'
 import { randomUUID, createHash } from 'crypto'
 import { NetworkManager } from './network/NetworkManager'
