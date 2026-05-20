@@ -189,6 +189,19 @@ export class NetworkManager extends EventEmitter {
       }
       case 'file_attachment': {
         const p = msg.payload as FileAttachmentPayload
+        const msgId = p.messageId
+        // Gossip deduplication (same as text_message)
+        if (this.seenMessages.has(msgId)) return
+        this.seenMessages.add(msgId)
+        if (this.seenMessages.size > this.MAX_SEEN_MESSAGES) {
+          const toDelete = Math.floor(this.MAX_SEEN_MESSAGES / 2)
+          const iter = this.seenMessages.values()
+          for (let i = 0; i < toDelete; i++) {
+            const val = iter.next().value
+            if (val) this.seenMessages.delete(val)
+          }
+        }
+
         const chat: ChatMessage = {
           id: randomUUID(),
           roomId: p.roomId,
@@ -315,6 +328,8 @@ export class NetworkManager extends EventEmitter {
       timestamp: Date.now(),
       payload: { roomId, fileName, fileSize, checksum, messageId } as FileAttachmentPayload,
     }
+    // Mark as seen locally so we don't relay our own attachment back to us
+    this.seenMessages.add(messageId)
     const room = this.rooms.get(roomId)
     if (!room) return
     const chat: ChatMessage = {
