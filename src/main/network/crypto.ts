@@ -6,8 +6,13 @@ const PBKDF2_ITERATIONS = 100000
 const GENERAL_ITERATIONS = 1000 // lower because master key + random roomId is already strong
 const KEY_LENGTH = 32 // 256 bits for AES-256
 
-// Master key for general (public) rooms. Hardcoded for simplicity.
-const GENERAL_MASTER_KEY = Buffer.from('whisper-net-general-master-key!', 'utf-8')
+function getGeneralMasterKey(): Buffer {
+  const key = process.env.WHISPER_GENERAL_MASTER_KEY
+  if (!key) {
+    throw new Error('WHISPER_GENERAL_MASTER_KEY is not set. Create a .env file based on .env.example')
+  }
+  return Buffer.from(key, 'utf-8')
+}
 
 /**
  * Derive an AES-256 key from a password and roomId using PBKDF2.
@@ -22,7 +27,7 @@ export function deriveKey(password: string, roomId: string): Buffer {
  * Uses a hardcoded master key so network sniffers can't decrypt without source access.
  */
 export function deriveGeneralKey(roomId: string): Buffer {
-  return crypto.pbkdf2Sync(GENERAL_MASTER_KEY, roomId + GENERAL_SALT, GENERAL_ITERATIONS, KEY_LENGTH, 'sha256')
+  return crypto.pbkdf2Sync(getGeneralMasterKey(), roomId + GENERAL_SALT, GENERAL_ITERATIONS, KEY_LENGTH, 'sha256')
 }
 
 /**
