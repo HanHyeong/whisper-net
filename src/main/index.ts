@@ -102,9 +102,9 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   // Fallback: Windows may fire did-finish-load before renderer listener is ready
   ipcMain.once('app:renderer-ready', () => {
     sendToRenderer('network:local', { peerId, nickname: initialNickname })
-    // Re-send current state so renderer doesn't miss early peer/room events
-    sendToRenderer('network:peers', network?.getPeers() ?? [])
-    sendToRenderer('network:rooms', (network?.getRooms() ?? []).map((r: any) => ({ ...r, members: Array.from(r.members) })))
+    // Trigger a refresh on startup so renderer gets latest peer/room data
+    // (same as user pressing the refresh button)
+    network?.refreshPeers().catch(() => {})
   })
 
   network.start()
