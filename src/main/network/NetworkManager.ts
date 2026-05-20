@@ -76,7 +76,11 @@ export class NetworkManager extends EventEmitter {
     this.server.start()
     this.server.on('message', (msg, socket) => this.handleMessage(msg, socket))
     this.server.on('peer:disconnect', (peerId) => {
-      this.emit('peer:disconnect', peerId)
+      this.handlePeerDisconnect(peerId)
+    })
+
+    this.client.on('disconnected', (peerId) => {
+      this.handlePeerDisconnect(peerId)
     })
 
     this.client.on('message', (msg) => this.handleMessage(msg))
@@ -534,6 +538,19 @@ export class NetworkManager extends EventEmitter {
         })
       }
     }
+  }
+
+  private handlePeerDisconnect(peerId: string) {
+    if (!this.peers.has(peerId)) return
+    this.peers.delete(peerId)
+    this.client.disconnect(peerId)
+    // Remove peer from all rooms they were in
+    for (const room of this.rooms.values()) {
+      room.members.delete(peerId)
+    }
+    this.updateDiscoveryRooms()
+    this.emit('peers', this.getPeers())
+    this.emit('rooms', this.getRooms())
   }
 
   private updateDiscoveryRooms() {

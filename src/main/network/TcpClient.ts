@@ -61,6 +61,7 @@ export class TcpClient extends EventEmitter {
       socket.on('error', () => {
         this.connecting.delete(peerId)
         this.sockets.delete(peerId)
+        this.emit('disconnected', peerId)
         resolve(false)
       })
     })
