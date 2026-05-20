@@ -8,8 +8,25 @@ export class TcpClient extends EventEmitter {
   private connecting = new Set<string>()
 
   connect(peerId: string, ip: string, port: number): Promise<boolean> {
-    if (this.sockets.has(peerId) || this.connecting.has(peerId)) {
-      return Promise.resolve(this.sockets.has(peerId))
+    const existing = this.sockets.get(peerId)
+    if (existing && !existing.destroyed) {
+      return Promise.resolve(true)
+    }
+    if (this.connecting.has(peerId)) {
+      // Wait for existing connection attempt to finish
+      return new Promise((resolve) => {
+        const check = () => {
+          const s = this.sockets.get(peerId)
+          if (s && !s.destroyed) {
+            resolve(true)
+          } else if (!this.connecting.has(peerId)) {
+            resolve(false)
+          } else {
+            setTimeout(check, 50)
+          }
+        }
+        check()
+      })
     }
     this.connecting.add(peerId)
 
@@ -43,6 +60,7 @@ export class TcpClient extends EventEmitter {
 
       socket.on('error', () => {
         this.connecting.delete(peerId)
+        this.sockets.delete(peerId)
         resolve(false)
       })
     })
@@ -50,7 +68,12 @@ export class TcpClient extends EventEmitter {
 
   send(peerId: string, msg: ProtocolMessage): boolean {
     const socket = this.sockets.get(peerId)
-    if (!socket || socket.destroyed) return false
+    if (!socket || socket.destroyed) {
+      if (socket?.destroyed) {
+        this.sockets.delete(peerId)
+      }
+      return false
+    }
     socket.write(encodeMessage(msg))
     return true
   }

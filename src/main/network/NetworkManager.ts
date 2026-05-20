@@ -79,6 +79,14 @@ export class NetworkManager extends EventEmitter {
     this.client.on('message', (msg) => this.handleMessage(msg))
     this.client.on('connected', (peerId, socket) => {
       this.server.registerSocket(peerId, socket)
+      // Send discover_ack so the peer can register our socket on their server
+      this.client.send(peerId, {
+        type: 'discover_ack',
+        peerId: this.local.peerId,
+        nickname: this.local.nickname,
+        timestamp: Date.now(),
+        payload: { tcpPort: this.local.tcpPort },
+      })
     })
 
     this.discovery.start()
@@ -223,6 +231,27 @@ export class NetworkManager extends EventEmitter {
       case 'file_chunk': {
         const p = msg.payload as FileChunkPayload
         this.emit('file:chunk', p)
+        break
+      }
+      case 'discover_ack': {
+        if (socket) {
+          this.server.registerSocket(msg.peerId, socket)
+          // Update peer info if we don't have it yet
+          const existing = this.peers.get(msg.peerId)
+          if (!existing) {
+            const peer: PeerInfo = {
+              peerId: msg.peerId,
+              nickname: msg.nickname,
+              ip: socket.remoteAddress?.replace(/^::ffff:/, '') || '',
+              tcpPort: msg.payload?.tcpPort || 41235,
+              discoveryPort: 8080,
+              lastSeen: Date.now(),
+              rooms: msg.payload?.rooms || [],
+            }
+            this.peers.set(msg.peerId, peer)
+            this.emit('peers', this.getPeers())
+          }
+        }
         break
       }
     }
