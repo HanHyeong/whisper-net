@@ -47,12 +47,11 @@
 
 ### 🔄 피어 정보 새로고침
 - Sidebar의 **🔄 버튼**으로 모든 피어의 닉네임/방 목록을 HTTP로 동기화
-- mDNS 발견 지연 시에도 최신 정보 획득 가능
-- 이전 버전 피어와의 호환성 유지
+- mDNS 이벤트 외에도 수동으로 최신 정보 획득 가능
 
 ### 🔍 자동 피어 발견
-- **TCP HTTP Discovery**: 8080~8083 포트에서 피어 자동 스캔 (기본)
-- **mDNS Fallback**: TCP 스캔 실패 시 Bonjour/mDNS로 fallback
+- **mDNS (Bonjour)**: 네트워크 내 피어를 이벤트 기반으로 자동 발견
+- **HTTP 서버**: 8080~8083 포트에서 피어 정보 제공 및 공유 폴터 서빙
 - **수동 IP 연결**: 직접 IP와 포트 입력으로 접속
 - **자동 재연결**: 네트워크 복구 시 피어 자동 복원
 
@@ -93,7 +92,7 @@
 │  │  │   Rooms    │  │   Peers    │   │ └────────────┘ │  │  │
 │  │  │  (Map)     │  │  (Map)     │   │ ┌────────────┐ │  │  │
 │  │  └────────────┘  └────────────┘   │ │ MdnsDiscovery│ │  │  │
-│  │                                    │ │  (fallback)  │ │  │  │
+│  │                                    │ │  (primary)   │ │  │  │
 │  │  Gossip: broadcastToRoom()         │ └────────────┘ │  │  │
 │  │  Dedup: seenMessages (UUID Set)    └────────────────┘  │  │
 │  └──────────────────────────────────────────────────────┘  │
@@ -106,8 +105,8 @@
 |--------|----------|------|
 | 애플리케이션 | JSON over TCP | 길이-프리픽스 메시지 (4바이트 헤더 + JSON 페이로드) |
 | 전송 | TCP | 랜덤 포트 41235+ (1:1 직접 연결) |
-| 발견 | HTTP 8080~8083 | `/whisper/peers`, `/whisper/heartbeat`, `/whisper/share` |
-| 폴트백 | mDNS (Bonjour) | TCP 스캔 5초 후 자동 활성화 |
+| 발견 | mDNS (Bonjour) | 이벤트 기반 피어 자동 발견 |
+| 메타데이터 | HTTP 8080~8083 | `/whisper/peers`, `/whisper/share` |
 
 ---
 
@@ -230,7 +229,8 @@ npm run dist
 - macOS에서 mDNS 활성화 시 "컴퓨터 이름 변경" 알림이 표시될 수 있음 (무시 가능)
 - DevTools에서 CSP 경고는 개발 모드 전용이며, 빌드 후 사라짐
 - 같은 PC에서 다중 인스턴스 실행 시 `whisper-config.json` 충돌 가능
-- 이전 버전 피어와의 교차 사용 시 암호화 메시지가 평문으로 표시될 수 있음
+- 이전 버전(v1.0.x) 피어와의 교차 사용 시 암호화 메시지가 평문으로 표시될 수 있음
+- 일부 네트워크(엔터프라이즈/VPN)에서 mDNS 멀티캐스트가 차단될 수 있음
 
 ---
 
@@ -243,7 +243,7 @@ npm run dist
 | 스타일링 | Tailwind CSS 3 |
 | 상태 관리 | Zustand |
 | P2P 네트워크 | TCP 소켓 (Node.js `net`), HTTP 서버 |
-| 서비스 발견 | TCP HTTP 스캔 + mDNS (Bonjour) 폴트백 |
+| 서비스 발견 | mDNS (Bonjour) 기반 이벤트 발견 + HTTP 메타데이터 동기화 |
 | 파일 전송 | HTTP GET (공유 폴터), TCP 청크 (1:1 직접 전송) |
 | 테스트 | Playwright (E2E 스캐폴드) |
 
