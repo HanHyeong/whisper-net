@@ -1,0 +1,15 @@
+#!/bin/sh
+# Auto version bump on every commit
+# Skip if the last commit was already a version bump (prevents infinite loop)
+if git log -1 --pretty=%B | grep -q "chore: version bump"; then
+  exit 0
+fi
+
+# Bump patch version without creating a git tag
+npm version patch --no-git-tag-version
+
+# Stage the updated package files
+git add package.json package-lock.json
+
+# Amend the last commit to include version bump (--no-verify skips hooks)
+git commit --amend --no-edit --no-verify

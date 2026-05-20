@@ -1,11 +1,17 @@
 import 'dotenv/config'
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
-import { randomUUID, createHash } from 'crypto'
 import fs from 'fs'
+import { randomUUID, createHash } from 'crypto'
 import { NetworkManager } from './network/NetworkManager'
 import { loadConfig, saveConfig } from './utils/config'
 import { signUrl } from './network/crypto'
+
+// Read version from package.json
+const packageJsonPath = path.join(__dirname, '../../package.json')
+const appVersion = fs.existsSync(packageJsonPath)
+  ? JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')).version
+  : '0.0.0'
 
 const isDev = !app.isPackaged
 let network: NetworkManager | null = null
@@ -98,6 +104,7 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
 
   // IPC handlers
   ipcMain.handle('app:get-config', () => loadConfig())
+  ipcMain.handle('app:get-version', () => appVersion)
   ipcMain.handle('app:set-nickname', (_, nickname: string) => {
     saveConfig({ nickname })
     if (network) {

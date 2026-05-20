@@ -1,4 +1,5 @@
 import { Peer, Room } from '../stores/appStore'
+import { useEffect, useState } from 'react'
 
 interface Props {
   peers: Peer[]
@@ -19,6 +20,11 @@ interface Props {
 }
 
 export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onRequestJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, onRefreshPeers, nickname, sharedFolder, unreadCounts }: Props) {
+  const [version, setVersion] = useState('')
+  useEffect(() => {
+    window.whisperAPI.getVersion().then((v: string) => setVersion(v))
+  }, [])
+
   // Derive discovered rooms from peers (both public and private)
   const discoveredRooms = peers
     .flatMap((p) => (p.rooms || []))
@@ -33,7 +39,7 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-bold text-lg text-emerald-400">Whisper Net</h1>
-            <p className="text-xs text-gray-500">P2P LAN Messenger</p>
+            <p className="text-xs text-gray-500">P2P LAN Messenger <span className="text-[10px] text-gray-600 ml-1">v{version}</span></p>
           </div>
           <button onClick={onEditNickname} className="text-[10px] text-gray-400 hover:text-white border border-gray-600 rounded px-2 py-1" title="nick change">
             {nickname || 'User'}
