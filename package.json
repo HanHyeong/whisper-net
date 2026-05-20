@@ -24,6 +24,9 @@
     "files": [
       "out/**/*"
     ],
+    "extraResources": [
+      ".env"
+    ],
     "mac": {
       "target": "dmg",
       "category": "public.app-category.social-networking"

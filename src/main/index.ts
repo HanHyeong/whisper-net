@@ -1,9 +1,15 @@
 import path from 'path'
+import { app } from 'electron'
 import dotenv from 'dotenv'
-// Load .env from project root (works in both dev and production builds)
-dotenv.config({ path: path.join(__dirname, '../../.env') })
 
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+// Load .env from correct location based on dev/prod
+// Dev: project root | Prod: app resources folder (via extraResources)
+const envPath = !app.isPackaged
+  ? path.join(__dirname, '../../.env')
+  : path.join(process.resourcesPath, '.env')
+dotenv.config({ path: envPath })
+
+import { shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import fs from 'fs'
 import { randomUUID, createHash } from 'crypto'
 import { NetworkManager } from './network/NetworkManager'
