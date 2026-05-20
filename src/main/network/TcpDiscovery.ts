@@ -289,6 +289,7 @@ export class TcpDiscovery extends EventEmitter {
 
       const entries = fs.readdirSync(targetPath, { withFileTypes: true })
       const items = entries
+        .filter((e) => e.name !== '_roomsFiles')
         .map((e) => {
           const stat = fs.statSync(path.join(targetPath, e.name))
           return {
