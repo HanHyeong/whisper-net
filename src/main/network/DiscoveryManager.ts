@@ -3,13 +3,10 @@ import { TcpDiscovery } from './TcpDiscovery'
 import { MdnsDiscovery } from './MdnsDiscovery'
 import { PeerInfo } from './protocol'
 
-const FALLBACK_DELAY_MS = 5000
-
 export class DiscoveryManager extends EventEmitter {
   private tcp: TcpDiscovery
   private mdns: MdnsDiscovery | null = null
   private peers = new Map<string, PeerInfo>()
-  private fallbackTimer: NodeJS.Timeout | null = null
   private mdnsActive = false
 
   constructor(
@@ -23,26 +20,9 @@ export class DiscoveryManager extends EventEmitter {
   }
 
   async start() {
-    this.tcp.on('peer:found', (p) => this.handlePeer(p))
-    this.tcp.on('peer:left', (peerId) => {
-      if (this.peers.has(peerId)) {
-        this.peers.delete(peerId)
-        this.emit('peer:left', peerId)
-        this.emitPeers()
-      }
-    })
-    this.tcp.on('error', () => {
-      this.activateMdns()
-    })
-
     await this.tcp.start()
-
-    // if no peer found within 5s, activate mDNS fallback
-    this.fallbackTimer = setTimeout(() => {
-      if (this.peers.size === 0) {
-        this.activateMdns()
-      }
-    }, FALLBACK_DELAY_MS)
+    // mDNS as primary discovery (no TCP scan fallback needed)
+    this.activateMdns()
   }
 
   private activateMdns() {
@@ -51,9 +31,11 @@ export class DiscoveryManager extends EventEmitter {
     this.mdns = new MdnsDiscovery(this.peerId, this.nickname, this.tcpPort, this.rooms, this.tcp.getPort())
     this.mdns.on('peer:found', (p) => this.handlePeer(p))
     this.mdns.on('peer:left', (pid) => {
-      this.peers.delete(pid)
-      this.emit('peer:left', pid)
-      this.emitPeers()
+      if (this.peers.has(pid)) {
+        this.peers.delete(pid)
+        this.emit('peer:left', pid)
+        this.emitPeers()
+      }
     })
     this.mdns.start()
   }
@@ -153,7 +135,6 @@ export class DiscoveryManager extends EventEmitter {
   }
 
   stop() {
-    if (this.fallbackTimer) clearTimeout(this.fallbackTimer)
     this.tcp.stop()
     this.mdns?.stop()
   }
