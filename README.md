@@ -217,10 +217,8 @@ npm run dist
 | **메시지 저장** | 메모리에만 저장, 디스크에 영구 저장하지 않음 |
 | **메시지 암호화** | AES-256-GCM (비밀방: PBKDF2 10만 회, 일반방: roomId 기반) |
 | **비밀방** | SHA-256 해시로 비밀번호 검증 |
-| **공유폴터 인증** | HMAC-SHA256 요청 서명 + 1분 타임스탬프 윈도우 |
 | **파일 접근** | 공유 폴터 내 `_roomsFiles/` 경로만 접근 가능 |
 | **Path Traversal** | `path.resolve()` 기반 검증으로 상위 디렉토리 접근 차단 |
-| **키 관리** | 모든 비밀 키는 `.env` 파일에 저장 (소스 코드에 하드코딩 없음) |
 
 ---
 
@@ -266,7 +264,7 @@ whisper-net/
 │   │   │   ├── DiscoveryManager.ts  # TCP + mDNS 오케스트레이션
 │   │   │   ├── MdnsDiscovery.ts     # mDNS 폴트백
 │   │   │   ├── protocol.ts          # 메시지 타입/인코딩
-│   │   │   └── crypto.ts            # PBKDF2 + AES-256-GCM + HMAC
+│   │   │   └── crypto.ts            # PBKDF2 + AES-256-GCM
 │   │   └── utils/
 │   │       └── config.ts   # 설정 파일 로드/저장
 │   ├── preload/            # IPC 브리지
