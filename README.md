@@ -43,6 +43,7 @@
 - **비밀방**: 사용자 비밀번호 + PBKDF2(10만 회) → AES-256-GCM 키
 - **일반방**: roomId 기반 키 파생 (master key + PBKDF2) → AES-256-GCM
 - **네트워크 상 암호화**: 스니퍼가 패킷을 캡처핻도 내용을 볼 수 없음
+- ⚠️ 클라이언트 측 키는 완벽히 숨길 수 없습니다 (Electron 한계). 네트워크 레벨 보안에 집중합니다.
 
 ### 🔄 피어 정보 새로고침
 - Sidebar의 **🔄 버튼**으로 모든 피어의 닉네임/방 목록을 HTTP로 동기화
@@ -60,7 +61,6 @@
 - **대화방 파일 첨부**: 10MB 이하 파일을 대화에 첨부 (URL 기반 공유)
 - **이미지 썸네일**: jpg/png/gif/webp 파일은 대화 내에서 미리보기
 - **클릭 실행**: 이미지는 기본 앱 열기, 일반 파일은 폴터 위치 보기
-- **HMAC 인증**: 외부인이 URL을 직접 호출핻도 공유 폴터 목록/파일 접근 불가
 
 ### 🏠 방 유지성
 - 방장이 나가도 **멤버들이 계속 대화** 가능
@@ -127,21 +127,6 @@ cd whisper-net
 
 # 의존성 설치
 npm install
-
-# 환경 변수 설정 (.env 파일 생성)
-cp .env.example .env
-```
-
-`.env` 파일의 키를 변경하세요:
-```bash
-# 랜덤 32바이트 hex 두 개 생성
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-```env
-WHISPER_HMAC_SECRET=첫번째랜덤32바이트hex
-WHISPER_GENERAL_MASTER_KEY=두번째랜덤32바이트hex
 ```
 
 ### 개발 모드 실행

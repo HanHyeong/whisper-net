@@ -1,20 +1,9 @@
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
-import { app } from 'electron'
-import dotenv from 'dotenv'
-
-// Load .env from correct location based on dev/prod
-// Dev: project root | Prod: app resources folder (via extraResources)
-const envPath = !app.isPackaged
-  ? path.join(__dirname, '../../.env')
-  : path.join(process.resourcesPath, '.env')
-dotenv.config({ path: envPath })
-
-import { shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import fs from 'fs'
 import { randomUUID, createHash } from 'crypto'
 import { NetworkManager } from './network/NetworkManager'
 import { loadConfig, saveConfig } from './utils/config'
-import { signUrl } from './network/crypto'
 
 // Read version from package.json
 const packageJsonPath = path.join(__dirname, '../../package.json')
@@ -291,8 +280,7 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   ipcMain.handle('net:list-peer-files', async (_, ip: string, discoveryPort: number, relativePath?: string) => {
     try {
       const qs = relativePath ? `?path=${encodeURIComponent(relativePath)}` : ''
-      const url = signUrl(`http://${ip}:${discoveryPort}/whisper/share${qs}`)
-      const data = await httpGet(url, 3000)
+      const data = await httpGet(`http://${ip}:${discoveryPort}/whisper/share${qs}`, 3000)
       return JSON.parse(data)
     } catch {
       return null
@@ -357,7 +345,7 @@ function httpGet(url: string, timeout = 3000): Promise<string> {
 function downloadFile(ip: string, port: number, fileName: string, destPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destPath)
-    const url = signUrl(`http://${ip}:${port}/whisper/share/${encodeURIComponent(fileName)}`)
+    const url = `http://${ip}:${port}/whisper/share/${encodeURIComponent(fileName)}`
     const req = require('http').get(url, { timeout: 30000 }, (res: any) => {
       if (res.statusCode !== 200) {
         reject(new Error(`Status ${res.statusCode}`))

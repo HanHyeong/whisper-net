@@ -6,13 +6,10 @@ const PBKDF2_ITERATIONS = 100000
 const GENERAL_ITERATIONS = 1000 // lower because master key + random roomId is already strong
 const KEY_LENGTH = 32 // 256 bits for AES-256
 
-function getGeneralMasterKey(): Buffer {
-  const key = process.env.WHISPER_GENERAL_MASTER_KEY
-  if (!key) {
-    throw new Error('WHISPER_GENERAL_MASTER_KEY is not set. Create a .env file based on .env.example')
-  }
-  return Buffer.from(key, 'utf-8')
-}
+// Master key for general (public) rooms.
+// Note: In a client-side Electron app, secrets cannot be perfectly hidden.
+// This key provides network-level encryption against passive sniffing.
+const GENERAL_MASTER_KEY = Buffer.from('whisper-net-general-master-key!', 'utf-8')
 
 /**
  * Derive an AES-256 key from a password and roomId using PBKDF2.
@@ -27,7 +24,7 @@ export function deriveKey(password: string, roomId: string): Buffer {
  * Uses a hardcoded master key so network sniffers can't decrypt without source access.
  */
 export function deriveGeneralKey(roomId: string): Buffer {
-  return crypto.pbkdf2Sync(getGeneralMasterKey(), roomId + GENERAL_SALT, GENERAL_ITERATIONS, KEY_LENGTH, 'sha256')
+  return crypto.pbkdf2Sync(GENERAL_MASTER_KEY, roomId + GENERAL_SALT, GENERAL_ITERATIONS, KEY_LENGTH, 'sha256')
 }
 
 /**
@@ -64,47 +61,4 @@ export function decrypt(ciphertext: string, key: Buffer): string {
   return decrypted.toString('utf-8')
 }
 
-const HMAC_WINDOW_MS = 60000 // 1 minute replay window
 
-function getHmacSecret(): string {
-  const secret = process.env.WHISPER_HMAC_SECRET
-  if (!secret) {
-    throw new Error('WHISPER_HMAC_SECRET is not set. Create a .env file based on .env.example')
-  }
-  return secret
-}
-
-/**
- * Sign a request path with timestamp for HMAC authentication.
- */
-export function signRequest(path: string, timestamp: number): string {
-  return crypto.createHmac('sha256', getHmacSecret()).update(`${path}:${timestamp}`).digest('hex')
-}
-
-/**
- * Verify HMAC signature for a request path.
- * Also checks timestamp to prevent replay attacks.
- */
-export function verifyRequest(path: string, timestamp: number, signature: string): boolean {
-  const now = Date.now()
-  if (Math.abs(now - timestamp) > HMAC_WINDOW_MS) return false
-  const expected = signRequest(path, timestamp)
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
-  } catch {
-    return false
-  }
-}
-
-/**
- * Append HMAC signature query parameters to a URL.
- */
-export function signUrl(urlStr: string): string {
-  const u = new URL(urlStr)
-  const path = u.pathname
-  const ts = Date.now()
-  const sig = signRequest(path, ts)
-  u.searchParams.set('ts', String(ts))
-  u.searchParams.set('sig', sig)
-  return u.toString()
-}
