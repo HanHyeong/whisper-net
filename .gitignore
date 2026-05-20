@@ -30,6 +30,7 @@ playwright-report/
 
 # Config (local only)
 whisper-config.json
+.env
 
 # Electron
 *.log

@@ -59,15 +59,21 @@ export function decrypt(ciphertext: string, key: Buffer): string {
   return decrypted.toString('utf-8')
 }
 
-// HMAC secret for shared folder request signing
-const HMAC_SECRET = 'whisper-net-shared-auth-v1'
 const HMAC_WINDOW_MS = 60000 // 1 minute replay window
+
+function getHmacSecret(): string {
+  const secret = process.env.WHISPER_HMAC_SECRET
+  if (!secret) {
+    throw new Error('WHISPER_HMAC_SECRET is not set. Create a .env file based on .env.example')
+  }
+  return secret
+}
 
 /**
  * Sign a request path with timestamp for HMAC authentication.
  */
 export function signRequest(path: string, timestamp: number): string {
-  return crypto.createHmac('sha256', HMAC_SECRET).update(`${path}:${timestamp}`).digest('hex')
+  return crypto.createHmac('sha256', getHmacSecret()).update(`${path}:${timestamp}`).digest('hex')
 }
 
 /**

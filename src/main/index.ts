@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
 import { randomUUID, createHash } from 'crypto'
