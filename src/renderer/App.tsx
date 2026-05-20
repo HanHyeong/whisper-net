@@ -31,7 +31,6 @@ export default function App() {
 
   useEffect(() => {
     const unsubPeers = window.whisperAPI.onPeers((list) => setPeers(list))
-    const unsubRooms = window.whisperAPI.onRooms((list) => setRooms(list))
     const unsubMsg = window.whisperAPI.onMessage((msg) => {
       addMessage(msg)
       // Increment unread if message is for a non-active room
@@ -91,7 +90,6 @@ export default function App() {
 
     return () => {
       unsubPeers()
-      unsubRooms()
       unsubMsg()
       unsubOffer()
       unsubLocal()
