@@ -25,7 +25,7 @@
 > 💡 **왜 Whisper Net인가?**
 > - 인터넷 연결 없이 작동 (오프라인 메신저)
 > - 서버 운영 비용 없음 (완전 물리적 P2P)
-> - 프라이버시 보장 (메시지가 서버를 거치지 않음)
+> - 프라이버시 보장 (메시지가 서버를 거치지 않음, E2E 암호화)
 > - 파일 공유 내장 (공유 폴터 + 대화방 첨부)
 
 ---
@@ -39,6 +39,16 @@
 - **안 읽은 메시지 배지**: 다른 방 메시지 수신 시 Sidebar에 알림
 - **휘발성 메시지**: 앱 종료 시 메시지 자동 삭제 (보안/경량화)
 
+### 🔐 메시지 암호화
+- **비밀방**: 사용자 비밀번호 + PBKDF2(10만 회) → AES-256-GCM 키
+- **일반방**: roomId 기반 키 파생 (master key + PBKDF2) → AES-256-GCM
+- **네트워크 상 암호화**: 스니퍼가 패킷을 캡처핻도 내용을 볼 수 없음
+
+### 🔄 피어 정보 새로고침
+- Sidebar의 **🔄 버튼**으로 모든 피어의 닉네임/방 목록을 HTTP로 동기화
+- mDNS 발견 지연 시에도 최신 정보 획득 가능
+- 이전 버전 피어와의 호환성 유지
+
 ### 🔍 자동 피어 발견
 - **TCP HTTP Discovery**: 8080~8083 포트에서 피어 자동 스캔 (기본)
 - **mDNS Fallback**: TCP 스캔 실패 시 Bonjour/mDNS로 fallback
@@ -50,6 +60,7 @@
 - **대화방 파일 첨부**: 10MB 이하 파일을 대화에 첨부 (URL 기반 공유)
 - **이미지 썸네일**: jpg/png/gif/webp 파일은 대화 내에서 미리보기
 - **클릭 실행**: 이미지는 기본 앱 열기, 일반 파일은 폴터 위치 보기
+- **HMAC 인증**: 외부인이 URL을 직접 호출핻도 공유 폴터 목록/파일 접근 불가
 
 ### 🏠 방 유지성
 - 방장이 나가도 **멤버들이 계속 대화** 가능
@@ -116,6 +127,21 @@ cd whisper-net
 
 # 의존성 설치
 npm install
+
+# 환경 변수 설정 (.env 파일 생성)
+cp .env.example .env
+```
+
+`.env` 파일의 키를 변경하세요:
+```bash
+# 랜덤 32바이트 hex 두 개 생성
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+```env
+WHISPER_HMAC_SECRET=첫번째랜덤32바이트hex
+WHISPER_GENERAL_MASTER_KEY=두번째랜덤32바이트hex
 ```
 
 ### 개발 모드 실행
@@ -205,9 +231,12 @@ npm run dist
 | 항목 | 정책 |
 |------|------|
 | **메시지 저장** | 메모리에만 저장, 디스크에 영구 저장하지 않음 |
+| **메시지 암호화** | AES-256-GCM (비밀방: PBKDF2 10만 회, 일반방: roomId 기반) |
 | **비밀방** | SHA-256 해시로 비밀번호 검증 |
+| **공유폴터 인증** | HMAC-SHA256 요청 서명 + 1분 타임스탬프 윈도우 |
 | **파일 접근** | 공유 폴터 내 `_roomsFiles/` 경로만 접근 가능 |
 | **Path Traversal** | `path.resolve()` 기반 검증으로 상위 디렉토리 접근 차단 |
+| **키 관리** | 모든 비밀 키는 `.env` 파일에 저장 (소스 코드에 하드코딩 없음) |
 
 ---
 
@@ -216,6 +245,7 @@ npm run dist
 - macOS에서 mDNS 활성화 시 "컴퓨터 이름 변경" 알림이 표시될 수 있음 (무시 가능)
 - DevTools에서 CSP 경고는 개발 모드 전용이며, 빌드 후 사라짐
 - 같은 PC에서 다중 인스턴스 실행 시 `whisper-config.json` 충돌 가능
+- 이전 버전 피어와의 교차 사용 시 암호화 메시지가 평문으로 표시될 수 있음
 
 ---
 
@@ -250,7 +280,8 @@ whisper-net/
 │   │   │   ├── TcpClient.ts         # TCP 발신 클라이언트
 │   │   │   ├── DiscoveryManager.ts  # TCP + mDNS 오케스트레이션
 │   │   │   ├── MdnsDiscovery.ts     # mDNS 폴트백
-│   │   │   └── protocol.ts          # 메시지 타입/인코딩
+│   │   │   ├── protocol.ts          # 메시지 타입/인코딩
+│   │   │   └── crypto.ts            # PBKDF2 + AES-256-GCM + HMAC
 │   │   └── utils/
 │   │       └── config.ts   # 설정 파일 로드/저장
 │   ├── preload/            # IPC 브리지
