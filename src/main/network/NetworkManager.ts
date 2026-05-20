@@ -12,7 +12,8 @@ import {
   FileOfferPayload,
   FileChunkPayload,
 } from './protocol'
-import { randomUUID, createHash } from 'crypto'
+import { randomUUID } from 'crypto'
+import { deriveKey, encrypt, decrypt, hashPassword } from './crypto'
 
 export interface LocalPeer {
   peerId: string
@@ -46,6 +47,8 @@ export interface Room {
   type: 'public' | 'private'
   members: Set<string> // peerIds
   messages: ChatMessage[]
+  encryptionKey?: Buffer
+  passwordHash?: string
 }
 
 export class NetworkManager extends EventEmitter {
@@ -134,21 +137,28 @@ export class NetworkManager extends EventEmitter {
           }
         }
 
+        const room = this.rooms.get(p.roomId)
+        if (!room) return
+        let decryptedContent = p.content
+        if (room.encryptionKey) {
+          try {
+            decryptedContent = decrypt(p.content, room.encryptionKey)
+          } catch {
+            decryptedContent = '[복호화 실패]'
+          }
+        }
         const chat: ChatMessage = {
           id: randomUUID(),
           roomId: p.roomId,
           senderId: msg.peerId,
           senderName: msg.nickname,
-          content: p.content,
+          content: decryptedContent,
           timestamp: msg.timestamp,
         }
-        const room = this.rooms.get(p.roomId)
-        if (room) {
-          room.messages.push(chat)
-          this.emit('message', chat)
-          // Relay to all room members except original sender
-          this.broadcastToRoom(p.roomId, msg, msg.peerId)
-        }
+        room.messages.push(chat)
+        this.emit('message', chat)
+        // Relay to all room members except original sender
+        this.broadcastToRoom(p.roomId, msg, msg.peerId)
         break
       }
       case 'join_room': {
@@ -157,8 +167,7 @@ export class NetworkManager extends EventEmitter {
         if (!room) return
         if (room.type === 'private') {
           const hash = p.passwordHash ?? ''
-          const expected = createHash('sha256').update(room.name + 'salt').digest('hex')
-          if (hash !== expected) {
+          if (!room.passwordHash || hash !== room.passwordHash) {
             this.sendDirect(msg.peerId, { type: 'leave_room', peerId: this.local.peerId, nickname: this.local.nickname, timestamp: Date.now(), payload: { roomId: p.roomId, reason: 'wrong_password' } })
             return
           }
@@ -202,12 +211,22 @@ export class NetworkManager extends EventEmitter {
           }
         }
 
+        const room = this.rooms.get(p.roomId)
+        if (!room) return
+        let decryptedContent = `📎 ${p.fileName}`
+        if (room.encryptionKey && p.content) {
+          try {
+            decryptedContent = decrypt(p.content, room.encryptionKey)
+          } catch {
+            decryptedContent = `📎 ${p.fileName}`
+          }
+        }
         const chat: ChatMessage = {
           id: randomUUID(),
           roomId: p.roomId,
           senderId: msg.peerId,
           senderName: msg.nickname,
-          content: `📎 ${p.fileName}`,
+          content: decryptedContent,
           timestamp: msg.timestamp,
           attachment: {
             fileName: p.fileName,
@@ -217,12 +236,9 @@ export class NetworkManager extends EventEmitter {
             messageId: p.messageId,
           },
         }
-        const room = this.rooms.get(p.roomId)
-        if (room) {
-          room.messages.push(chat)
-          this.emit('message', chat)
-          this.broadcastToRoom(p.roomId, msg, msg.peerId)
-        }
+        room.messages.push(chat)
+        this.emit('message', chat)
+        this.broadcastToRoom(p.roomId, msg, msg.peerId)
         break
       }
       case 'room_members': {
@@ -279,6 +295,10 @@ export class NetworkManager extends EventEmitter {
       members: new Set([this.local.peerId]),
       messages: [],
     }
+    if (type === 'private' && password) {
+      room.passwordHash = hashPassword(password)
+      room.encryptionKey = deriveKey(password, roomId)
+    }
     this.rooms.set(roomId, room)
     this.updateDiscoveryRooms()
     return room
@@ -288,6 +308,9 @@ export class NetworkManager extends EventEmitter {
     const room = this.rooms.get(roomId)
     if (room) {
       room.members.add(this.local.peerId)
+      if (room.type === 'private' && password && !room.encryptionKey) {
+        room.encryptionKey = deriveKey(password, roomId)
+      }
       return
     }
     // find a peer that has this room and send join
@@ -295,7 +318,7 @@ export class NetworkManager extends EventEmitter {
       if (peer.rooms.some((r) => r.roomId === roomId)) {
         const payload: JoinRoomPayload = { roomId }
         if (password) {
-          payload.passwordHash = createHash('sha256').update(password + 'salt').digest('hex')
+          payload.passwordHash = hashPassword(password)
         }
         this.sendDirect(peer.peerId, {
           type: 'join_room',
@@ -313,6 +336,9 @@ export class NetworkManager extends EventEmitter {
           members: new Set([this.local.peerId, peer.peerId]),
           messages: [],
         }
+        if (type === 'private' && password) {
+          stub.encryptionKey = deriveKey(password, roomId)
+        }
         this.rooms.set(roomId, stub)
         this.updateDiscoveryRooms()  // advertise that I have this room
         return
@@ -321,23 +347,27 @@ export class NetworkManager extends EventEmitter {
   }
 
   sendFileAttachment(roomId: string, fileName: string, fileSize: number, checksum: string, messageId: string, localPath: string, dataUrl?: string) {
+    const room = this.rooms.get(roomId)
+    if (!room) return
+    let content = `📎 ${fileName}`
+    if (room.encryptionKey) {
+      content = encrypt(content, room.encryptionKey)
+    }
     const msg: ProtocolMessage = {
       type: 'file_attachment',
       peerId: this.local.peerId,
       nickname: this.local.nickname,
       timestamp: Date.now(),
-      payload: { roomId, fileName, fileSize, checksum, messageId } as FileAttachmentPayload,
+      payload: { roomId, fileName, fileSize, checksum, messageId, content } as FileAttachmentPayload,
     }
     // Mark as seen locally so we don't relay our own attachment back to us
     this.seenMessages.add(messageId)
-    const room = this.rooms.get(roomId)
-    if (!room) return
     const chat: ChatMessage = {
       id: randomUUID(),
       roomId,
       senderId: this.local.peerId,
       senderName: this.local.nickname,
-      content: `📎 ${fileName}`,
+      content: room.encryptionKey ? `📎 ${fileName}` : content,
       timestamp: Date.now(),
       attachment: {
         fileName,
@@ -355,19 +385,23 @@ export class NetworkManager extends EventEmitter {
   }
 
   sendText(roomId: string, content: string) {
+    const room = this.rooms.get(roomId)
+    if (!room) return
     const messageId = randomUUID()
+    let encryptedContent = content
+    if (room.encryptionKey) {
+      encryptedContent = encrypt(content, room.encryptionKey)
+    }
     const msg: ProtocolMessage = {
       type: 'text_message',
       peerId: this.local.peerId,
       nickname: this.local.nickname,
       timestamp: Date.now(),
-      payload: { roomId, content, messageId } as TextMessagePayload,
+      payload: { roomId, content: encryptedContent, messageId } as TextMessagePayload,
     }
     // mark as seen locally
     this.seenMessages.add(messageId)
 
-    const room = this.rooms.get(roomId)
-    if (!room) return
     const chat: ChatMessage = {
       id: randomUUID(),
       roomId,

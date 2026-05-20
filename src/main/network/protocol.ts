@@ -71,6 +71,8 @@ export interface FileAttachmentPayload {
   fileSize: number
   checksum: string
   messageId: string
+  /** Encrypted display content (e.g. "📎 filename"). Optional for backward compat. */
+  content?: string
 }
 
 export interface FileChunkPayload {
