@@ -13,7 +13,7 @@ import {
   FileChunkPayload,
 } from './protocol'
 import { randomUUID } from 'crypto'
-import { deriveKey, deriveGeneralKey, encrypt, decrypt, hashPassword } from './crypto'
+import { deriveKey, deriveRoomKey, encrypt, decrypt, hashPassword } from './crypto'
 
 export interface LocalPeer {
   peerId: string
@@ -299,8 +299,8 @@ export class NetworkManager extends EventEmitter {
       room.passwordHash = hashPassword(password)
       room.encryptionKey = deriveKey(password, roomId)
     } else {
-      // General rooms also get encrypted (key derived from roomId + master key)
-      room.encryptionKey = deriveGeneralKey(roomId)
+      // General rooms: key derived from roomId only
+      room.encryptionKey = deriveRoomKey(roomId)
     }
     this.rooms.set(roomId, room)
     this.updateDiscoveryRooms()
@@ -342,7 +342,7 @@ export class NetworkManager extends EventEmitter {
         if (type === 'private' && password) {
           stub.encryptionKey = deriveKey(password, roomId)
         } else {
-          stub.encryptionKey = deriveGeneralKey(roomId)
+          stub.encryptionKey = deriveRoomKey(roomId)
         }
         this.rooms.set(roomId, stub)
         this.updateDiscoveryRooms()  // advertise that I have this room

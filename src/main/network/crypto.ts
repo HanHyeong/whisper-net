@@ -1,15 +1,9 @@
 import crypto from 'crypto'
 
 const ROOM_SALT = 'whisper-net-v1'
-const GENERAL_SALT = 'whisper-net-general'
 const PBKDF2_ITERATIONS = 100000
-const GENERAL_ITERATIONS = 1000 // lower because master key + random roomId is already strong
+const GENERAL_ITERATIONS = 1000
 const KEY_LENGTH = 32 // 256 bits for AES-256
-
-// Master key for general (public) rooms.
-// Note: In a client-side Electron app, secrets cannot be perfectly hidden.
-// This key provides network-level encryption against passive sniffing.
-const GENERAL_MASTER_KEY = Buffer.from('whisper-net-general-master-key!', 'utf-8')
 
 /**
  * Derive an AES-256 key from a password and roomId using PBKDF2.
@@ -20,11 +14,11 @@ export function deriveKey(password: string, roomId: string): Buffer {
 }
 
 /**
- * Derive a general room key from roomId (no password needed).
- * Uses a hardcoded master key so network sniffers can't decrypt without source access.
+ * Derive a general room key from roomId only (no password needed).
+ * General rooms use roomId itself as the key source since it is a random UUID.
  */
-export function deriveGeneralKey(roomId: string): Buffer {
-  return crypto.pbkdf2Sync(GENERAL_MASTER_KEY, roomId + GENERAL_SALT, GENERAL_ITERATIONS, KEY_LENGTH, 'sha256')
+export function deriveRoomKey(roomId: string): Buffer {
+  return crypto.pbkdf2Sync(roomId, ROOM_SALT, GENERAL_ITERATIONS, KEY_LENGTH, 'sha256')
 }
 
 /**
