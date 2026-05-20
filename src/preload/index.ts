@@ -24,6 +24,7 @@ const api = {
   cancelTransfer: (transferId: string) => ipcRenderer.invoke('net:cancel-transfer', transferId),
   setSharedFolder: (path?: string | null) => ipcRenderer.invoke('app:set-shared-folder', path),
   getSharedFolder: () => ipcRenderer.invoke('app:get-shared-folder'),
+  selectDownloadFolder: () => ipcRenderer.invoke('app:select-download-folder'),
   openFile: (filePath: string) => ipcRenderer.invoke('app:open-file', filePath),
   showInFolder: (filePath: string) => ipcRenderer.invoke('app:show-in-folder', filePath),
   rendererReady: () => ipcRenderer.send('app:renderer-ready'),

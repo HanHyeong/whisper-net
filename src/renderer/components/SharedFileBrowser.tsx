@@ -67,7 +67,7 @@ export default function SharedFileBrowser({ peerName, ip, discoveryPort, onClose
   const download = async () => {
     if (selected.size === 0) return
     setDownloading(true)
-    const destDir = await window.whisperAPI.setSharedFolder()
+    const destDir = await window.whisperAPI.selectDownloadFolder()
     if (!destDir) {
       setDownloading(false)
       return

@@ -259,6 +259,11 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   ipcMain.handle('app:get-shared-folder', () => {
     return loadConfig().sharedPath || null
   })
+  ipcMain.handle('app:select-download-folder', async () => {
+    const result = await dialog.showOpenDialog(win, { properties: ['openDirectory'] })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
   ipcMain.handle('app:open-file', (_, filePath: string) => {
     shell.openPath(filePath)
   })
