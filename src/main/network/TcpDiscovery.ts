@@ -80,7 +80,7 @@ export class TcpDiscovery extends EventEmitter {
     }
   }
 
-  private getLocalIp(): string {
+  getLocalIp(): string {
     const ifaces = os.networkInterfaces()
     const ips: string[] = []
     for (const name of Object.keys(ifaces)) {

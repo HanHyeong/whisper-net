@@ -15,7 +15,8 @@ export class MdnsDiscovery extends EventEmitter {
     private nickname: string,
     private tcpPort: number,
     private rooms: PeerInfo['rooms'] = [],
-    private discoveryPort: number = 8080
+    private discoveryPort: number = 8080,
+    private ip: string = ''
   ) {
     super()
   }
@@ -34,6 +35,7 @@ export class MdnsDiscovery extends EventEmitter {
         nickname: this.nickname,
         rooms: JSON.stringify(this.rooms),
         discoveryPort: String(this.discoveryPort),
+        ip: this.ip,
       },
     })
 
@@ -41,7 +43,8 @@ export class MdnsDiscovery extends EventEmitter {
     this.browser = this.bonjour.find({ type: SERVICE_TYPE, protocol: SERVICE_PROTOCOL })
     this.browser.on('up', (service: any) => {
       if (service.txt?.peerId === this.peerId) return
-      const ip = service.addresses?.find((a: string) => a.includes('.')) || service.host
+      // Use the IP from TXT record first to avoid .local domain issues on Windows
+      const ip = service.txt?.ip || service.addresses?.find((a: string) => a.includes('.')) || service.host
       const peer = {
         peerId: service.txt?.peerId || service.name,
         nickname: service.txt?.nickname || 'Unknown',

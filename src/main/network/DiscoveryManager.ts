@@ -28,7 +28,7 @@ export class DiscoveryManager extends EventEmitter {
   private activateMdns() {
     if (this.mdnsActive) return
     this.mdnsActive = true
-    this.mdns = new MdnsDiscovery(this.peerId, this.nickname, this.tcpPort, this.rooms, this.tcp.getPort())
+    this.mdns = new MdnsDiscovery(this.peerId, this.nickname, this.tcpPort, this.rooms, this.tcp.getPort(), this.tcp.getLocalIp())
     this.mdns.on('peer:found', (p) => this.handlePeer(p))
     this.mdns.on('peer:left', (pid) => {
       if (this.peers.has(pid)) {
