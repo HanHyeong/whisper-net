@@ -51,14 +51,21 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   const tcpPort = 41235 + Math.floor(Math.random() * 1000)
   network = new NetworkManager({ peerId, nickname: initialNickname, tcpPort })
 
+  // Guard against sending to destroyed window (app quit race condition on Windows)
+  const sendToRenderer = (channel: string, ...args: any[]) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(channel, ...args)
+    }
+  }
+
   network.on('peers', (peers) => {
-    win.webContents.send('network:peers', peers)
+    sendToRenderer('network:peers', peers)
   })
   network.on('message', (msg) => {
-    win.webContents.send('network:message', msg)
+    sendToRenderer('network:message', msg)
   })
   network.on('file:offer', (offer) => {
-    win.webContents.send('network:file:offer', offer)
+    sendToRenderer('network:file:offer', offer)
   })
   network.on('file:chunk', (chunkPayload) => {
     const t = activeTransfers.get(chunkPayload.transferId)
@@ -66,7 +73,7 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
       const buf = Buffer.from(chunkPayload.chunk, 'base64')
       t.writeStream.write(buf)
       t.received += buf.length
-      win.webContents.send('file:progress', {
+      sendToRenderer('file:progress', {
         transferId: chunkPayload.transferId,
         received: t.received,
         total: t.total,
@@ -75,17 +82,17 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
       if (t.received >= t.total) {
         t.writeStream.end()
         activeTransfers.delete(chunkPayload.transferId)
-        win.webContents.send('file:complete', { transferId: chunkPayload.transferId, savePath: t.savePath })
+        sendToRenderer('file:complete', { transferId: chunkPayload.transferId, savePath: t.savePath })
       }
     }
   })
 
   win.webContents.on('did-finish-load', () => {
-    win.webContents.send('network:local', { peerId, nickname: initialNickname })
+    sendToRenderer('network:local', { peerId, nickname: initialNickname })
   })
   // Fallback: Windows may fire did-finish-load before renderer listener is ready
   ipcMain.once('app:renderer-ready', () => {
-    win.webContents.send('network:local', { peerId, nickname: initialNickname })
+    sendToRenderer('network:local', { peerId, nickname: initialNickname })
   })
 
   network.start()
@@ -108,7 +115,7 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
     if (network) {
       network.updateNickname(nickname)
     }
-    win.webContents.send('network:local', { peerId, nickname })
+    sendToRenderer('network:local', { peerId, nickname })
   })
 
   ipcMain.handle('net:create-room', (_, name: string, type: 'public' | 'private', password?: string) => {
@@ -316,17 +323,21 @@ async function sendFileChunks(transferId: string, peerId: string, filePath: stri
     network?.sendFileChunk(peerId, transferId, chunk, index, totalChunks)
     sent += chunk.length
     index++
-    mainWin?.webContents.send('file:progress', {
-      transferId,
-      received: sent,
-      total: totalSize,
-      direction: 'upload',
-    })
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.send('file:progress', {
+        transferId,
+        received: sent,
+        total: totalSize,
+        direction: 'upload',
+      })
+    }
     // small delay to avoid flooding
     await new Promise((r) => setTimeout(r, 5))
   }
 
-  mainWin?.webContents.send('file:complete', { transferId, filePath })
+  if (mainWin && !mainWin.isDestroyed()) {
+    mainWin.webContents.send('file:complete', { transferId, filePath })
+  }
   activeTransfers.delete(transferId)
 }
 
