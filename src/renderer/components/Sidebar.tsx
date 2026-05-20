@@ -12,12 +12,13 @@ interface Props {
   onSetSharedFolder: () => void
   onStopSharing: () => void
   onBrowsePeerFiles: (peer: Peer) => void
+  onRefreshPeers: () => void
   nickname: string
   sharedFolder: string | null
   unreadCounts: Record<string, number>
 }
 
-export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onRequestJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, nickname, sharedFolder, unreadCounts }: Props) {
+export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onRequestJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, onRefreshPeers, nickname, sharedFolder, unreadCounts }: Props) {
   // Derive discovered rooms from peers (both public and private)
   const discoveredRooms = peers
     .flatMap((p) => (p.rooms || []))
@@ -45,6 +46,7 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
           <span className="text-xs font-semibold text-gray-400 uppercase">Network Peers</span>
           <div className="flex gap-1">
             <span className="text-xs bg-gray-700 px-2 py-0.5 rounded-full">{peers.length}</span>
+            <button onClick={onRefreshPeers} className="text-[10px] bg-gray-700 hover:bg-gray-600 px-1.5 py-0.5 rounded" title="refresh peers">🔄</button>
             <button onClick={onManualConnect} className="text-[10px] bg-emerald-700 hover:bg-emerald-600 px-2 py-0.5 rounded" title="manual connect">+</button>
           </div>
         </div>

@@ -17,6 +17,7 @@ const api = {
   getPeers: () => ipcRenderer.invoke('net:get-peers'),
   getRooms: () => ipcRenderer.invoke('net:get-rooms'),
   connectPeer: (ip: string, port: number) => ipcRenderer.invoke('net:connect-peer', ip, port),
+  refreshPeers: () => ipcRenderer.invoke('net:refresh-peers'),
   offerFile: (peerId: string) => ipcRenderer.invoke('net:offer-file', peerId),
   acceptFile: (peerId: string, transferId: string, fileName: string) =>
     ipcRenderer.invoke('net:accept-file', peerId, transferId, fileName),

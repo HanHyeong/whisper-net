@@ -189,6 +189,7 @@ export default function App() {
         onStopSharing={handleStopSharing}
         onRequestJoinRoom={handleRequestJoinRoom}
         onBrowsePeerFiles={handleBrowsePeerFiles}
+        onRefreshPeers={() => window.whisperAPI.refreshPeers()}
         nickname={localNickname}
         sharedFolder={sharedFolder}
         unreadCounts={unreadCounts}

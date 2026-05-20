@@ -193,6 +193,9 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   ipcMain.handle('net:connect-peer', async (_, ip: string, port: number) => {
     network?.connectPeer(ip, port)
   })
+  ipcMain.handle('net:refresh-peers', async () => {
+    return network?.refreshPeers() ?? 0
+  })
 
   // File transfer: sender side
   ipcMain.handle('net:offer-file', async (_, peerIdArg: string) => {

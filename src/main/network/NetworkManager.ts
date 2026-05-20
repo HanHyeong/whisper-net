@@ -378,6 +378,10 @@ export class NetworkManager extends EventEmitter {
     }
   }
 
+  async refreshPeers(): Promise<number> {
+    return this.discovery.refreshPeers()
+  }
+
   getSharedPath(): string | null {
     return this.discovery.getSharedPath()
   }

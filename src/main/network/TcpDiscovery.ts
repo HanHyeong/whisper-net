@@ -252,6 +252,10 @@ export class TcpDiscovery extends EventEmitter {
     this.myInfo.rooms = rooms
   }
 
+  getPort(): number {
+    return this.port
+  }
+
   getPeers(): KnownPeer[] {
     return Array.from(this.knownPeers.values())
   }

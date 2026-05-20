@@ -14,7 +14,8 @@ export class MdnsDiscovery extends EventEmitter {
     private peerId: string,
     private nickname: string,
     private tcpPort: number,
-    private rooms: PeerInfo['rooms'] = []
+    private rooms: PeerInfo['rooms'] = [],
+    private discoveryPort: number = 8080
   ) {
     super()
   }
@@ -32,6 +33,7 @@ export class MdnsDiscovery extends EventEmitter {
         peerId: this.peerId,
         nickname: this.nickname,
         rooms: JSON.stringify(this.rooms),
+        discoveryPort: String(this.discoveryPort),
       },
     })
 
@@ -45,6 +47,7 @@ export class MdnsDiscovery extends EventEmitter {
         nickname: service.txt?.nickname || 'Unknown',
         ip,
         tcpPort: service.port,
+        discoveryPort: parseInt(service.txt?.discoveryPort) || 8080,
         rooms: [],
       }
       try {

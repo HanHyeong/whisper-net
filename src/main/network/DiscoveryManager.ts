@@ -48,7 +48,7 @@ export class DiscoveryManager extends EventEmitter {
   private activateMdns() {
     if (this.mdnsActive) return
     this.mdnsActive = true
-    this.mdns = new MdnsDiscovery(this.peerId, this.nickname, this.tcpPort, this.rooms)
+    this.mdns = new MdnsDiscovery(this.peerId, this.nickname, this.tcpPort, this.rooms, this.tcp.getPort())
     this.mdns.on('peer:found', (p) => this.handlePeer(p))
     this.mdns.on('peer:left', (pid) => {
       this.peers.delete(pid)
@@ -104,6 +104,52 @@ export class DiscoveryManager extends EventEmitter {
 
   getPeers(): PeerInfo[] {
     return Array.from(this.peers.values())
+  }
+
+  async refreshPeers(): Promise<number> {
+    let updatedCount = 0
+    for (const [peerId, peer] of this.peers) {
+      if (!peer.discoveryPort) continue
+      try {
+        const data = await this.httpGet(
+          `http://${peer.ip}:${peer.discoveryPort}/whisper/peers`,
+          3000
+        )
+        const json = JSON.parse(data)
+        if (json.self && json.self.peerId === peerId) {
+          const updated: PeerInfo = {
+            ...peer,
+            nickname: json.self.nickname || peer.nickname,
+            rooms: json.self.rooms || peer.rooms,
+            lastSeen: Date.now(),
+          }
+          this.peers.set(peerId, updated)
+          this.emit('peer:updated', updated)
+          updatedCount++
+        }
+      } catch {
+        // Peer may be unreachable; skip silently
+      }
+    }
+    if (updatedCount > 0) {
+      this.emitPeers()
+    }
+    return updatedCount
+  }
+
+  private httpGet(url: string, timeout: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const req = require('http').get(url, { timeout }, (res: any) => {
+        let data = ''
+        res.on('data', (c: any) => (data += c))
+        res.on('end', () => resolve(data))
+      })
+      req.on('error', reject)
+      req.on('timeout', () => {
+        req.destroy()
+        reject(new Error('timeout'))
+      })
+    })
   }
 
   stop() {
