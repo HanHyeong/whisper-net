@@ -58,3 +58,42 @@ export function decrypt(ciphertext: string, key: Buffer): string {
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()])
   return decrypted.toString('utf-8')
 }
+
+// HMAC secret for shared folder request signing
+const HMAC_SECRET = 'whisper-net-shared-auth-v1'
+const HMAC_WINDOW_MS = 60000 // 1 minute replay window
+
+/**
+ * Sign a request path with timestamp for HMAC authentication.
+ */
+export function signRequest(path: string, timestamp: number): string {
+  return crypto.createHmac('sha256', HMAC_SECRET).update(`${path}:${timestamp}`).digest('hex')
+}
+
+/**
+ * Verify HMAC signature for a request path.
+ * Also checks timestamp to prevent replay attacks.
+ */
+export function verifyRequest(path: string, timestamp: number, signature: string): boolean {
+  const now = Date.now()
+  if (Math.abs(now - timestamp) > HMAC_WINDOW_MS) return false
+  const expected = signRequest(path, timestamp)
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Append HMAC signature query parameters to a URL.
+ */
+export function signUrl(urlStr: string): string {
+  const u = new URL(urlStr)
+  const path = u.pathname
+  const ts = Date.now()
+  const sig = signRequest(path, ts)
+  u.searchParams.set('ts', String(ts))
+  u.searchParams.set('sig', sig)
+  return u.toString()
+}

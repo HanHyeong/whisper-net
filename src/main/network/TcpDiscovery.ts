@@ -4,6 +4,7 @@ import { PeerInfo } from './protocol'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
+import { verifyRequest } from './crypto'
 
 const DISCOVERY_PORT = 8080
 const PORT_RANGE = [8080, 8081, 8082, 8083]
@@ -89,8 +90,10 @@ export class TcpDiscovery extends EventEmitter {
             res.end('{}')
           })
         } else if (pathname === '/whisper/share' && req.method === 'GET') {
+          if (!this.verifyShareRequest(req, res)) return
           this.handleShareList(req, res)
         } else if (pathname.startsWith('/whisper/share/') && req.method === 'GET') {
+          if (!this.verifyShareRequest(req, res)) return
           this.handleShareDownload(req, res)
         } else {
           res.writeHead(404)
@@ -108,6 +111,25 @@ export class TcpDiscovery extends EventEmitter {
       return new URL(req.url!, `http://${req.headers.host}`).pathname
     } catch {
       return req.url || ''
+    }
+  }
+
+  private verifyShareRequest(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+    try {
+      const url = new URL(req.url!, `http://${req.headers.host}`)
+      const ts = parseInt(url.searchParams.get('ts') || '')
+      const sig = url.searchParams.get('sig') || ''
+      const path = url.pathname
+      if (!ts || !sig || !verifyRequest(path, ts, sig)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Unauthorized' }))
+        return false
+      }
+      return true
+    } catch {
+      res.writeHead(403, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Unauthorized' }))
+      return false
     }
   }
 

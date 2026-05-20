@@ -4,6 +4,7 @@ import { randomUUID, createHash } from 'crypto'
 import fs from 'fs'
 import { NetworkManager } from './network/NetworkManager'
 import { loadConfig, saveConfig } from './utils/config'
+import { signUrl } from './network/crypto'
 
 const isDev = !app.isPackaged
 let network: NetworkManager | null = null
@@ -268,7 +269,8 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   ipcMain.handle('net:list-peer-files', async (_, ip: string, discoveryPort: number, relativePath?: string) => {
     try {
       const qs = relativePath ? `?path=${encodeURIComponent(relativePath)}` : ''
-      const data = await httpGet(`http://${ip}:${discoveryPort}/whisper/share${qs}`, 3000)
+      const url = signUrl(`http://${ip}:${discoveryPort}/whisper/share${qs}`)
+      const data = await httpGet(url, 3000)
       return JSON.parse(data)
     } catch {
       return null
@@ -333,7 +335,7 @@ function httpGet(url: string, timeout = 3000): Promise<string> {
 function downloadFile(ip: string, port: number, fileName: string, destPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destPath)
-    const url = `http://${ip}:${port}/whisper/share/${encodeURIComponent(fileName)}`
+    const url = signUrl(`http://${ip}:${port}/whisper/share/${encodeURIComponent(fileName)}`)
     const req = require('http').get(url, { timeout: 30000 }, (res: any) => {
       if (res.statusCode !== 200) {
         reject(new Error(`Status ${res.statusCode}`))
