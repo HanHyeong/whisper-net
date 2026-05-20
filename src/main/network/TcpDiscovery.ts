@@ -340,7 +340,8 @@ export class TcpDiscovery extends EventEmitter {
       res.end()
       return
     }
-    const fileName = decodeURIComponent(req.url!.replace('/whisper/share/', ''))
+    const url = new URL(req.url!, `http://${req.headers.host}`)
+    const fileName = decodeURIComponent(url.pathname.replace('/whisper/share/', ''))
     const filePath = path.join(this.sharedPath, fileName)
     // Security: prevent directory traversal
     if (!filePath.startsWith(this.sharedPath)) {
