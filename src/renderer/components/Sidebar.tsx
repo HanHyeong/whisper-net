@@ -51,7 +51,7 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-gray-400 uppercase">Network Peers</span>
           <div className="flex gap-1">
-            <span className="text-xs bg-gray-700 px-2 py-0.5 rounded-full">{peers.length}</span>
+            <span className="text-xs bg-gray-700 w-5 h-5 flex items-center justify-center rounded-full">{peers.length}</span>
             <button onClick={onRefreshPeers} className="text-sm bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded" title="refresh peers">🔄</button>
             <button onClick={onManualConnect} className="text-sm bg-emerald-700 hover:bg-emerald-600 px-2 py-1 rounded" title="manual connect">+</button>
           </div>
