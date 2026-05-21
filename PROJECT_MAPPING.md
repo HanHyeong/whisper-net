@@ -1,7 +1,7 @@
 # Whisper Net — Project Mapping Document
 
 > **목적**: 유지보수 및 신규 기능 개발 시 코드베이스 탐색 시간을 최소화하기 위한 전체 맵핑 문서  
-> **버전**: 1.5.0 (package.json 기준)  
+> **버전**: 1.6.0 (package.json 기준)  
 > **작성일**: 2026-05-20  
 > **프로젝트 유형**: Electron 기반 P2P LAN 메신저 데스크톱 앱
 
@@ -14,7 +14,7 @@
 | 항목 | 내용 |
 |------|------|
 | **이름** | whisper-net |
-| **버전** | 1.5.0 |
+| **버전** | 1.6.0 |
 | **라이선스** | MIT |
 | **메인 엔트리** | `./out/main/index.js` (빌드 후) |
 | **앱 ID** | `com.whisper-net.app` |
@@ -197,6 +197,7 @@ app.whenReady()
 | `net:download-peer-files` | R→M | 피어 파일 다중 다운로드 | SharedFileBrowser.tsx |
 | `app:set-room-mute` | R→M | 대화방 알림 끄기/켜기 | ChatView.tsx |
 | `app:get-room-mute` | R→M | 대화방 알림 상태 조회 | ChatView.tsx |
+| `app:set-notification-preview` | R→M | 알림 내용 미리보기 ON/OFF | NicknameModal.tsx |
 | `app:renderer-ready` | R→M | 렌더러 준비 완료 신호 | App.tsx |
 
 **Renderer → Main 이벤트 (push)**:
@@ -861,6 +862,8 @@ AppState {
 | 트레이 아이콘 안 보임 / 닫기 시 종료됨 | `index.ts` (`createTray`, `close` 이벤트) | `build/icon.png` 경로 누락 또는 `isQuitting` 플래그 미설정 |
 | 비밀방 비밀번호 틀려도 참여된 것처럼 보임 | `NetworkManager.ts` (`joinRoom` stub) | 비밀번호 확인 전에 로컬 stub 방을 미리 생성 |
 | 비밀방 참여 거부 시 알림 없음 | `NetworkManager.ts`, `App.tsx` | `leave_room` 처리 및 `join:rejected` 이벤트 누락 |
+| 참여자 수 표시 안 됨 ("명 참여중") | `index.ts` (`network:rooms` IPC) | `members`를 `Set`인 채로 본냄. Renderer는 `length`를 읽으려 해서 `undefined` |
+| 비밀방 생성 시 빈 비밀번호 허용 | `CreateRoomModal.tsx` | 비밀번호 빈값 체크 및 버튼 비활성화 누락 |
 
 ---
 

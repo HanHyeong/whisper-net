@@ -9,7 +9,7 @@
 
 **Whisper Net**은 중앙 서버 없이 동작하는 P2P LAN 메신저 데스크톱 앱입니다. 같은 로컬 네트워크 내 기기들이 mDNS(Bonjour)로 서로를 발견하고, TCP 소켓으로 직접 메시지를 주고받습니다. 메시지는 메모리에만 저장되며 앱 종료 시 삭제됩니다.
 
-- **버전**: 1.5.0
+- **버전**: 1.6.0
 - **라이선스**: MIT
 - **메인 엔트리**: `./out/main/index.js` (빌드 후)
 - **앱 ID**: `com.whisper-net.app`
@@ -179,6 +179,8 @@ import { ... } from '@renderer/stores/appStore'       // src/renderer/...
 | **앱 숨김/트레이** | 닫기 버튼 시 트레이로 숨김. 네트워크/메시지 메모리 유지 |
 | **메시지 알림** | 포커스를 잃거나 숨겨진 상태에서 시스템 Notification + 트레이 툴팁 |
 | **대화방별 알림 끄기** | ChatView 헤더 종 아이콘 토글. mute 시 알림/플래시/바운스 suppressed |
+| **알림 내용 미리보기 설정** | 설정 모달에서 ON/OFF. OFF 시 "새 메시지가 도착했습니다"만 표시 |
+| **비밀방 생성 유효성 검사** | 비밀번호 빈값 시 생성 버튼 비활성화 |
 | **CSP** | `index.html`에 Content-Security-Policy 메타 태그 설정 |
 
 > 상세 보안 모델 및 Path Traversal 방지 로직은 [PROJECT_MAPPING.md §11](./PROJECT_MAPPING.md) 참조.
@@ -218,9 +220,9 @@ import { ... } from '@renderer/stores/appStore'       // src/renderer/...
 
 `npm run dist` 실행 시 플랫폼별 패키지가 `dist/`에 생성됩니다.
 
-- **macOS**: `dist/Whisper Net-1.5.0.dmg`
-- **Windows**: `dist/Whisper Net Setup 1.5.0.exe`
-- **Linux**: `dist/Whisper Net-1.5.0.AppImage`
+- **macOS**: `dist/Whisper Net-1.6.0.dmg`
+- **Windows**: `dist/Whisper Net Setup 1.6.0.exe`
+- **Linux**: `dist/Whisper Net-1.6.0.AppImage`
 
 빌드 설정은 `package.json`의 `build` 필드에서 관리합니다. 아이콘은 `build/icon.png`를 사용합니다.
 
