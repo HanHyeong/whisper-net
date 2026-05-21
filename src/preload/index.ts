@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 const api = {
   getConfig: () => ipcRenderer.invoke('app:get-config'),
   getVersion: () => ipcRenderer.invoke('app:get-version'),
+  getLocalInfo: () => ipcRenderer.invoke('app:get-local-info'),
   setNickname: (nickname: string) => ipcRenderer.invoke('app:set-nickname', nickname),
 
   createRoom: (name: string, type: 'public' | 'private', password?: string) =>

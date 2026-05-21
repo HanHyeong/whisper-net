@@ -127,6 +127,10 @@ export default function App() {
 
   const handleSendFileAttachment = async () => {
     if (!activeRoomId) return
+    if (!sharedFolder) {
+      alert('파일 첨부를 위한 공유 폴터 설정이 필요합니다.')
+      return
+    }
     const res: any = await window.whisperAPI.sendFileAttachment(activeRoomId)
     if (res?.error) {
       alert(res.error)

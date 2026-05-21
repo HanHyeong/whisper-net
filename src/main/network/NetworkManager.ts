@@ -501,6 +501,18 @@ export class NetworkManager extends EventEmitter {
     return Array.from(this.rooms.values())
   }
 
+  getLocalIp(): string {
+    return this.discovery.getLocalIp()
+  }
+
+  getTcpPort(): number {
+    return this.local.tcpPort
+  }
+
+  getDiscoveryPort(): number {
+    return this.discovery.getDiscoveryPort()
+  }
+
   private broadcastToRoom(roomId: string, msg: ProtocolMessage, excludePeerId?: string) {
     const room = this.rooms.get(roomId)
     if (!room) return

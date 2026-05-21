@@ -21,8 +21,10 @@ interface Props {
 
 export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onRequestJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, onRefreshPeers, nickname, sharedFolder, unreadCounts }: Props) {
   const [version, setVersion] = useState('')
+  const [localInfo, setLocalInfo] = useState<{ ip: string; tcpPort: number; discoveryPort: number } | null>(null)
   useEffect(() => {
     window.whisperAPI.getVersion().then((v: string) => setVersion(v))
+    window.whisperAPI.getLocalInfo().then((info: { ip: string; tcpPort: number; discoveryPort: number }) => setLocalInfo(info))
   }, [])
 
   // Derive discovered rooms from peers (both public and private)
@@ -46,6 +48,20 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
           </button>
         </div>
       </div>
+
+      {localInfo && (
+        <div className="px-4 py-2 border-b border-gray-700">
+          <div className="bg-gray-900/50 px-3 py-2 rounded">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase">My Address</span>
+                <span className="text-xs text-emerald-400">{localInfo.ip}:{localInfo.tcpPort}</span>
+                <span className="text-[10px] text-gray-500">discovery port {localInfo.discoveryPort}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-3">
         <div className="flex items-center justify-between mb-2">
@@ -74,7 +90,6 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
                   📁
                 </button>
               </div>
-              <div className="text-[10px] text-gray-500 ml-4">{p.ip}:{p.tcpPort}</div>
             </li>
           ))}
           {peers.length === 0 && <li className="text-xs text-gray-600 px-2">No peers (scanning TCP 8080...)</li>}

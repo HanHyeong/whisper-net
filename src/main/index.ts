@@ -122,6 +122,11 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   // IPC handlers
   ipcMain.handle('app:get-config', () => loadConfig())
   ipcMain.handle('app:get-version', () => appVersion)
+  ipcMain.handle('app:get-local-info', () => ({
+    ip: network?.getLocalIp() ?? '127.0.0.1',
+    tcpPort: network?.getTcpPort() ?? 0,
+    discoveryPort: network?.getDiscoveryPort() ?? 0,
+  }))
   ipcMain.handle('app:set-nickname', (_, nickname: string) => {
     saveConfig({ nickname })
     if (network) {

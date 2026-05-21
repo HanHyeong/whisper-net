@@ -88,6 +88,14 @@ export class DiscoveryManager extends EventEmitter {
     return Array.from(this.peers.values())
   }
 
+  getLocalIp(): string {
+    return this.tcp.getLocalIp()
+  }
+
+  getDiscoveryPort(): number {
+    return this.tcp.getPort()
+  }
+
   async refreshPeers(): Promise<number> {
     let updatedCount = 0
     for (const [peerId, peer] of this.peers) {
