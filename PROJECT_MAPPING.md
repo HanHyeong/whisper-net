@@ -1,7 +1,7 @@
 # Whisper Net — Project Mapping Document
 
 > **목적**: 유지보수 및 신규 기능 개발 시 코드베이스 탐색 시간을 최소화하기 위한 전체 맵핑 문서  
-> **버전**: 1.2.0 (package.json 기준)  
+> **버전**: 1.2.1 (package.json 기준)  
 > **작성일**: 2026-05-20  
 > **프로젝트 유형**: Electron 기반 P2P LAN 메신저 데스크톱 앱
 
@@ -14,7 +14,7 @@
 | 항목 | 내용 |
 |------|------|
 | **이름** | whisper-net |
-| **버전** | 1.2.0 |
+| **버전** | 1.2.1 |
 | **라이선스** | MIT |
 | **메인 엔트리** | `./out/main/index.js` (빌드 후) |
 | **앱 ID** | `com.whisper-net.app` |
@@ -171,6 +171,7 @@ app.whenReady()
 |------|------|------|----------|
 | `app:get-config` | R→M | 설정 로드 | App.tsx |
 | `app:get-version` | R→M | 버전 조회 | Sidebar.tsx |
+| `app:get-local-info` | R→M | 로컬 IP/포트 조회 | Sidebar.tsx |
 | `app:set-nickname` | R→M | 닉네임 변경 저장 | App.tsx |
 | `net:create-room` | R→M | 방 생성 | CreateRoomModal.tsx |
 | `net:join-room` | R→M | 방 참여 | App.tsx (JoinRoomModal) |
@@ -282,6 +283,9 @@ handleMessage(msg, socket?)
 |--------|------|
 | `sendText(roomId, content)` | 텍스트 메시지 암호화 → broadcast |
 | `sendFileAttachment(...)` | 파일 첨부 메시지 생성 → broadcast |
+| `getLocalIp()` | 로컬 IP 주소 반환 (TcpDiscovery 위임) |
+| `getTcpPort()` | TCP 수신 포트 반환 |
+| `getDiscoveryPort()` | HTTP discovery 포트 반환 (TcpDiscovery 위임) |
 | `offerFile(peerId, ...)` | 1:1 파일 전송 offer (TCP direct) |
 | `sendFileChunk(peerId, ...)` | 1:1 파일 청크 전송 |
 | `sendDirect(peerId, msg)` | server.send() || client.send() → 실패 시 재연결 시도 |
@@ -305,6 +309,10 @@ start()
 ```
 
 **refreshPeers()**: HTTP GET `/whisper/peers`로 모든 알려진 피어의 최신 정보(닉네임, 방 목록)를 동기화합니다. Sidebar의 🔄 버튼으로 호출됩니다.
+
+**로컬 정보 조회 메서드**:
+- `getLocalIp()`: TcpDiscovery.getLocalIp() 위임. 비공인 IPv4 우선, 없으면 첫 번째 IPv4
+- `getDiscoveryPort()`: TcpDiscovery.getPort() 위임. HTTP 서버가 실제 바인딩한 포트 (8080~8083 중 하나)
 
 ---
 
@@ -485,6 +493,10 @@ useEffect (mount)
   └── getRooms() -> rooms 상태 동기화
 ```
 
+**파일 첨부 핸들러** (`handleSendFileAttachment`):
+- `sharedFolder`가 설정되지 않은 경우: `alert('파일 첨부를 위한 공유 폴터 설정이 필요합니다.')` → 조기 반환
+- 설정된 경우: `window.whisperAPI.sendFileAttachment()` 호출 → 에러 시 alert
+
 **레이아웃 구조**:
 ```
 <div className="flex h-screen w-screen">
@@ -524,9 +536,10 @@ AppState {
 
 ### 7.4 컴포넌트별 상세 역할
 
-#### Sidebar.tsx (172줄)
+#### Sidebar.tsx (178줄)
 - **상단**: 앱 타이틀 + 버전 + 닉네임 버튼
-- **Network Peers 섹션**: 피어 목록 + 🔄(새로고침) + +(수동연결). 각 피어 행에 📁(공유폴터 탐색) 버튼
+- **My Address 섹션**: 로컬 IP, TCP 포트, discovery 포트 표시 (bg-gray-900/50 박스). `window.whisperAPI.getLocalInfo()` 호출
+- **Network Peers 섹션**: 피어 목록 + 🔄(새로고침) + +(수동연결). 각 피어 행에 📁(공유폴터 탐색) 버튼. **피어의 IP/포트는 노출되지 않음** (익명성 유지)
 - **My Rooms 섹션**: 내가 참여 중인 방 목록. 활성 방 하이라이트 + unread 배지
 - **Discovered Rooms 섹션**: 피어들이 가진 방 중 내가 참여하지 않은 방 표시. 클릭 시 join 요청
 - **하단**: Shared Folder 토글 + Change Folder 버튼
@@ -575,6 +588,7 @@ AppState {
 ├─────────────────────────────────┼─────────────────────────────────────────────┤
 │ app:get-config                  │ loadConfig() → JSON 반환                     │
 │ app:get-version                 │ package.json version 읽기                    │
+│ app:get-local-info              │ network.getLocalIp/tcpPort/discoveryPort 반환 │
 │ app:set-nickname                │ saveConfig() + network.updateNickname()      │
 │ net:create-room                 │ network.createRoom() → Room 객체 반환        │
 │ net:join-room                   │ network.joinRoom()                           │
@@ -676,9 +690,10 @@ AppState {
 
 ```
 [Sender]
-  1. dialog.showOpenDialog → 파일 선택
-  2. 10MB 초과 검증
-  3. 파일을 sharedPath/_roomsFiles/{roomId}/{messageId}/ 에 복사
+  1. Renderer: sharedFolder 미설정 시 alert로 사전 차단 (App.tsx)
+  2. dialog.showOpenDialog → 파일 선택
+  3. 10MB 초과 검증
+  4. 파일을 sharedPath/_roomsFiles/{roomId}/{messageId}/ 에 복사
   4. SHA-256 체크섬 생성
   5. 이미지면 dataUrl 생성 (base64)
   6. network.sendFileAttachment() → file_attachment 메시지 broadcast
