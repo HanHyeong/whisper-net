@@ -1,7 +1,7 @@
 # Whisper Net — Project Mapping Document
 
 > **목적**: 유지보수 및 신규 기능 개발 시 코드베이스 탐색 시간을 최소화하기 위한 전체 맵핑 문서  
-> **버전**: 1.3.0 (package.json 기준)  
+> **버전**: 1.4.0 (package.json 기준)  
 > **작성일**: 2026-05-20  
 > **프로젝트 유형**: Electron 기반 P2P LAN 메신저 데스크톱 앱
 
@@ -14,7 +14,7 @@
 | 항목 | 내용 |
 |------|------|
 | **이름** | whisper-net |
-| **버전** | 1.3.0 |
+| **버전** | 1.4.0 |
 | **라이선스** | MIT |
 | **메인 엔트리** | `./out/main/index.js` (빌드 후) |
 | **앱 ID** | `com.whisper-net.app` |
@@ -149,7 +149,8 @@ whisper-net/
 2. `NetworkManager` 인스턴스화 및 시작
 3. 모든 `ipcMain.handle` / `ipcMain.on` 등록
 4. 파일 전송 상태 관리 (`activeTransfers` Map)
-5. 앱 종료 시 정리 (파일 삭제, 소켓 종료)
+5. 트레이 아이콘 생성 (`createTray`) 및 윈도우 `close` 이벤트 가로채기 (숨김)
+6. 앱 종료 시 정리 (`before-quit`: 파일 삭제, 소켓 종료)
 
 **앱 실행 흐름**:
 ```
@@ -162,7 +163,9 @@ app.whenReady()
       ├── 개발모드: localhost:5173 로드 / 배포: index.html 로드
       ├── NetworkManager 생성 (랜덤 UUID peerId, 랜덤 TCP 포트 41235+)
       ├── network.start()                # 서버/클라이언트/발견 시작
-      └── IPC 핸들러 등록 (아래 참조)
+      ├── IPC 핸들러 등록 (아래 참조)
+      ├── win.on('close') -> hide()      # 닫기 시 트레이로 숨김
+      └── createTray()                   # 트레이 아이콘 + 더블클릭/메뉴
 ```
 
 **IPC 핸들러 목록**:
@@ -851,6 +854,7 @@ AppState {
 | 닉네임 저장 안 됨 | `config.ts`, `index.ts` | 설정 파일 경로 또는 권한 |
 | UI 깨짐/스타일 이슈 | `tailwind.config.js`, `index.css` | content 경로 또는 클래스 오류 |
 | 첨부 이미지 미리보기 안 됨 | `ChatView.tsx`, `index.ts` | dataUrl 미생성 또는 MIME 타입 |
+| 트레이 아이콘 안 보임 / 닫기 시 종료됨 | `index.ts` (`createTray`, `close` 이벤트) | `build/icon.png` 경로 누락 또는 `isQuitting` 플래그 미설정 |
 
 ---
 
