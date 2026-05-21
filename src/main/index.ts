@@ -173,7 +173,9 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
     sendToRenderer('network:peers', peers)
   })
   network.on('rooms', (rooms) => {
-    sendToRenderer('network:rooms', rooms)
+    // Serialize Set members to arrays for IPC (structured clone keeps Set, but renderer expects [])
+    const serialized = (rooms as any[]).map((r) => ({ ...r, members: Array.from(r.members) }))
+    sendToRenderer('network:rooms', serialized)
   })
   network.on('join:rejected', (info) => {
     sendToRenderer('network:join-rejected', info)
