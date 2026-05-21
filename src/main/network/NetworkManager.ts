@@ -200,6 +200,15 @@ export class NetworkManager extends EventEmitter {
         }
         break
       }
+      case 'leave_room': {
+        const p = msg.payload as { roomId: string; reason?: string }
+        if (p.roomId && this.rooms.has(p.roomId)) {
+          this.rooms.delete(p.roomId)
+          this.updateDiscoveryRooms()
+          this.emit('rooms', this.getRooms())
+        }
+        break
+      }
       case 'room_advertised': {
         const peer = this.peers.get(msg.peerId)
         if (peer && msg.payload?.rooms) {
