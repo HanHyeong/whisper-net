@@ -13,6 +13,7 @@ export interface RoomInfo {
   name: string
   type: 'public' | 'private'
   memberCount: number
+  isPending?: boolean
 }
 
 export type MessageType =

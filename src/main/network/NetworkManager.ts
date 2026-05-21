@@ -49,6 +49,7 @@ export interface Room {
   messages: ChatMessage[]
   encryptionKey?: Buffer
   passwordHash?: string
+  isPending?: boolean
 }
 
 export class NetworkManager extends EventEmitter {
@@ -355,8 +356,22 @@ export class NetworkManager extends EventEmitter {
           timestamp: Date.now(),
           payload,
         })
-        // Do NOT create a local stub here. Wait for room_members (success)
-        // or leave_room (rejected) from the owner.
+        // create local stub until ack (removed on leave_room or confirmed by room_members)
+        const stub: Room = {
+          roomId,
+          name: name || 'Unknown',
+          type: type || 'public',
+          members: new Set([this.local.peerId, peer.peerId]),
+          messages: [],
+          isPending: true,
+        }
+        if (type === 'private' && password) {
+          stub.encryptionKey = deriveKey(password, roomId)
+        } else {
+          stub.encryptionKey = deriveRoomKey(roomId)
+        }
+        this.rooms.set(roomId, stub)
+        this.updateDiscoveryRooms()
         return
       }
     }
