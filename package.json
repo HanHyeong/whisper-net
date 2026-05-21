@@ -22,7 +22,8 @@
       "output": "dist"
     },
     "files": [
-      "out/**/*"
+      "out/**/*",
+      "build/**/*"
     ],
     "mac": {
       "target": "dmg",

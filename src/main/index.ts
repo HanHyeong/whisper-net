@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, Menu, nativeImage } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Menu, nativeImage, Tray } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { randomUUID, createHash } from 'crypto'
@@ -14,6 +14,8 @@ const appVersion = fs.existsSync(packageJsonPath)
 const isDev = !app.isPackaged
 let network: NetworkManager | null = null
 let mainWin: BrowserWindow | null = null
+let tray: Tray | null = null
+let isQuitting = false
 
 // Badge handlers (registered once globally to avoid duplicate registration)
 ipcMain.handle('app:set-badge-count', (_, count: number) => {
@@ -47,6 +49,54 @@ const activeTransfers = new Map<
     peerId: string
   }
 >()
+
+function createTray() {
+  if (tray) return
+
+  const iconPath = isDev
+    ? path.join(__dirname, '../../build/icon.png')
+    : path.join(process.resourcesPath, 'app.asar', 'build', 'icon.png')
+
+  let icon = nativeImage.createFromPath(iconPath)
+  if (icon.isEmpty()) {
+    icon = nativeImage.createEmpty()
+  }
+  icon = icon.resize({ width: 16, height: 16 })
+  if (process.platform === 'darwin') {
+    icon.setTemplateImage(true)
+  }
+
+  tray = new Tray(icon)
+  tray.setToolTip('Whisper Net')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Whisper Net 열기',
+      click: () => {
+        if (mainWin && !mainWin.isDestroyed()) {
+          mainWin.show()
+          mainWin.focus()
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '종료',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      },
+    },
+  ])
+  tray.setContextMenu(contextMenu)
+
+  tray.on('double-click', () => {
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.show()
+      mainWin.focus()
+    }
+  })
+}
 
 function createWindow(initialNickname: string, initialSharedPath?: string) {
   const win = new BrowserWindow({
@@ -346,6 +396,24 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
     return downloads
   })
 
+  win.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault()
+      win.hide()
+      if (process.platform === 'darwin' && app.dock) {
+        app.dock.hide()
+      }
+    }
+  })
+
+  win.on('closed', () => {
+    mainWin = null
+  })
+
+  if (!tray) {
+    createTray()
+  }
+
   win.on('focus', () => {
     if (process.platform === 'win32') {
       win.flashFrame(false)
@@ -432,13 +500,24 @@ app.whenReady().then(() => {
   createWindow(nickname, cfg.sharedPath)
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.show()
+      mainWin.focus()
+      if (process.platform === 'darwin' && app.dock) {
+        app.dock.show()
+      }
+    } else {
       createWindow(nickname, cfg.sharedPath)
     }
   })
 })
 
 app.on('window-all-closed', () => {
+  // Keep app running in tray on Windows/Linux; macOS stays alive by default
+})
+
+app.on('before-quit', () => {
+  isQuitting = true
   for (const t of activeTransfers.values()) {
     if (t.writeStream) t.writeStream.destroy()
   }
@@ -452,5 +531,4 @@ app.on('window-all-closed', () => {
     } catch {}
   }
   network?.stop()
-  app.quit()
 })
