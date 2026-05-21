@@ -61,10 +61,8 @@ function createTray() {
   if (icon.isEmpty()) {
     icon = nativeImage.createEmpty()
   }
-  icon = icon.resize({ width: 16, height: 16 })
-  if (process.platform === 'darwin') {
-    icon.setTemplateImage(true)
-  }
+  icon = icon.resize({ width: 22, height: 22 })
+  // Colored icon on all platforms (no template) so the brand gradient shows
 
   tray = new Tray(icon)
   tray.setToolTip('Whisper Net')
