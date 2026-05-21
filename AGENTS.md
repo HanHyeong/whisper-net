@@ -9,7 +9,7 @@
 
 **Whisper Net**은 중앙 서버 없이 동작하는 P2P LAN 메신저 데스크톱 앱입니다. 같은 로컬 네트워크 내 기기들이 mDNS(Bonjour)로 서로를 발견하고, TCP 소켓으로 직접 메시지를 주고받습니다. 메시지는 메모리에만 저장되며 앱 종료 시 삭제됩니다.
 
-- **버전**: 1.2.1
+- **버전**: 1.3.0
 - **라이선스**: MIT
 - **메인 엔트리**: `./out/main/index.js` (빌드 후)
 - **앱 ID**: `com.whisper-net.app`
@@ -215,9 +215,9 @@ import { ... } from '@renderer/stores/appStore'       // src/renderer/...
 
 `npm run dist` 실행 시 플랫폼별 패키지가 `dist/`에 생성됩니다.
 
-- **macOS**: `dist/Whisper Net-1.2.1.dmg`
-- **Windows**: `dist/Whisper Net Setup 1.2.1.exe`
-- **Linux**: `dist/Whisper Net-1.2.1.AppImage`
+- **macOS**: `dist/Whisper Net-1.3.0.dmg`
+- **Windows**: `dist/Whisper Net Setup 1.3.0.exe`
+- **Linux**: `dist/Whisper Net-1.3.0.AppImage`
 
 빌드 설정은 `package.json`의 `build` 필드에서 관리합니다. 아이콘은 `build/icon.png`를 사용합니다.
 

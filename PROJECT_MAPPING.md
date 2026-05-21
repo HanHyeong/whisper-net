@@ -1,7 +1,7 @@
 # Whisper Net — Project Mapping Document
 
 > **목적**: 유지보수 및 신규 기능 개발 시 코드베이스 탐색 시간을 최소화하기 위한 전체 맵핑 문서  
-> **버전**: 1.2.1 (package.json 기준)  
+> **버전**: 1.3.0 (package.json 기준)  
 > **작성일**: 2026-05-20  
 > **프로젝트 유형**: Electron 기반 P2P LAN 메신저 데스크톱 앱
 
@@ -14,7 +14,7 @@
 | 항목 | 내용 |
 |------|------|
 | **이름** | whisper-net |
-| **버전** | 1.2.1 |
+| **버전** | 1.3.0 |
 | **라이선스** | MIT |
 | **메인 엔트리** | `./out/main/index.js` (빌드 후) |
 | **앱 ID** | `com.whisper-net.app` |
@@ -612,6 +612,8 @@ AppState {
 │ app:show-in-folder              │ shell.showItemInFolder()                     │
 │ net:list-peer-files             │ HTTP GET /whisper/share?path=...             │
 │ net:download-peer-files         │ HTTP GET 반복 → destDir에 저장               │
+│ app:set-badge-count             │ macOS dock.setBadge / Linux setBadgeCount    │
+│ app:set-badge-overlay           │ Windows setOverlayIcon (nativeImage)         │
 │ app:renderer-ready              │ network:local 전송 + refreshPeers()          │
 └─────────────────────────────────┴─────────────────────────────────────────────┘
 ```

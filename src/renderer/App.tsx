@@ -174,6 +174,33 @@ export default function App() {
     setBrowsePeer(peer)
   }
 
+  // Update dock/taskbar badge when unread counts change
+  useEffect(() => {
+    const totalUnread = Object.values(unreadCounts).reduce((sum, c) => sum + c, 0)
+    window.whisperAPI.setBadgeCount(totalUnread)
+
+    // Generate overlay icon for Windows (canvas-based badge)
+    const canvas = document.createElement('canvas')
+    canvas.width = 32
+    canvas.height = 32
+    const ctx = canvas.getContext('2d')!
+    if (totalUnread > 0) {
+      ctx.beginPath()
+      ctx.arc(24, 8, 8, 0, 2 * Math.PI)
+      ctx.fillStyle = '#EF4444'
+      ctx.fill()
+      ctx.fillStyle = '#FFFFFF'
+      ctx.font = 'bold 10px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      const text = totalUnread > 99 ? '99+' : String(totalUnread)
+      ctx.fillText(text, 24, 8)
+      window.whisperAPI.setBadgeOverlay(canvas.toDataURL('image/png'))
+    } else {
+      window.whisperAPI.setBadgeOverlay(null)
+    }
+  }, [unreadCounts])
+
   const activeRoom = rooms.find((r) => r.roomId === activeRoomId)
 
   return (

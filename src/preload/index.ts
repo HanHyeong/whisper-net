@@ -32,6 +32,8 @@ const api = {
   rendererReady: () => ipcRenderer.send('app:renderer-ready'),
   listPeerFiles: (ip: string, discoveryPort: number, relativePath?: string) => ipcRenderer.invoke('net:list-peer-files', ip, discoveryPort, relativePath),
   downloadPeerFiles: (ip: string, discoveryPort: number, files: string[], destDir: string, basePath?: string) => ipcRenderer.invoke('net:download-peer-files', ip, discoveryPort, files, destDir, basePath),
+  setBadgeCount: (count: number) => ipcRenderer.invoke('app:set-badge-count', count),
+  setBadgeOverlay: (dataUrl: string | null) => ipcRenderer.invoke('app:set-badge-overlay', dataUrl),
 
   onPeers: (cb: (peers: any[]) => void) => {
     const handler = (_: any, peers: any[]) => cb(peers)

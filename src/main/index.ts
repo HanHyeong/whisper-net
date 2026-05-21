@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Menu, nativeImage } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { randomUUID, createHash } from 'crypto'
@@ -14,6 +14,26 @@ const appVersion = fs.existsSync(packageJsonPath)
 const isDev = !app.isPackaged
 let network: NetworkManager | null = null
 let mainWin: BrowserWindow | null = null
+
+// Badge handlers (registered once globally to avoid duplicate registration)
+ipcMain.handle('app:set-badge-count', (_, count: number) => {
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setBadge(count > 0 ? String(count) : '')
+  }
+  if (process.platform === 'linux') {
+    app.setBadgeCount(count > 0 ? count : 0)
+  }
+})
+ipcMain.handle('app:set-badge-overlay', (_, dataUrl: string | null) => {
+  if (process.platform === 'win32' && mainWin && !mainWin.isDestroyed()) {
+    if (dataUrl) {
+      const icon = nativeImage.createFromDataURL(dataUrl)
+      mainWin.setOverlayIcon(icon, 'Unread messages')
+    } else {
+      mainWin.setOverlayIcon(null, '')
+    }
+  }
+})
 
 // File transfer state
 const activeTransfers = new Map<
