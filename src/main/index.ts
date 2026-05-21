@@ -178,11 +178,9 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
       if (process.platform === 'darwin' && app.dock) {
         app.dock.bounce('informational')
       }
-      // Notify when hidden / not focused
+      // Notify when not focused (hidden or background)
       unreadMessageCount++
-      if (!win.isVisible()) {
-        showMessageNotification(msg)
-      }
+      showMessageNotification(msg)
       updateTrayTooltip(unreadMessageCount)
     }
   })
