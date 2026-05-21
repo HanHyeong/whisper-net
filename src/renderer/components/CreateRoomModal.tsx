@@ -12,6 +12,7 @@ export default function CreateRoomModal({ onClose, onCreated }: Props) {
 
   const submit = async () => {
     if (!name.trim()) return
+    if (type === 'private' && !password.trim()) return
     const room = await window.whisperAPI.createRoom(name.trim(), type, type === 'private' ? password : undefined)
     if (room) onCreated(room)
   }
@@ -41,7 +42,13 @@ export default function CreateRoomModal({ onClose, onCreated }: Props) {
         </div>
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onClose} className="px-4 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600">취소</button>
-          <button onClick={submit} className="px-4 py-2 rounded text-sm bg-emerald-600 hover:bg-emerald-500">만들기</button>
+          <button
+            onClick={submit}
+            disabled={!name.trim() || (type === 'private' && !password.trim())}
+            className="px-4 py-2 rounded text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            만들기
+          </button>
         </div>
       </div>
     </div>
