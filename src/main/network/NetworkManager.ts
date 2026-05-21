@@ -207,6 +207,9 @@ export class NetworkManager extends EventEmitter {
           this.updateDiscoveryRooms()
           this.emit('rooms', this.getRooms())
         }
+        if (p.reason === 'wrong_password') {
+          this.emit('join:rejected', { roomId: p.roomId, reason: p.reason })
+        }
         break
       }
       case 'room_advertised': {

@@ -47,6 +47,11 @@ const api = {
     ipcRenderer.on('network:rooms', handler)
     return () => ipcRenderer.removeListener('network:rooms', handler)
   },
+  onJoinRejected: (cb: (info: { roomId: string; reason: string }) => void) => {
+    const handler = (_: any, info: any) => cb(info)
+    ipcRenderer.on('network:join-rejected', handler)
+    return () => ipcRenderer.removeListener('network:join-rejected', handler)
+  },
   onMessage: (cb: (msg: any) => void) => {
     const handler = (_: any, msg: any) => cb(msg)
     ipcRenderer.on('network:message', handler)
