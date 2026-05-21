@@ -57,6 +57,7 @@ interface AppState {
   activeRoomId: string | null
   transfers: FileTransfer[]
   unreadCounts: Record<string, number>
+  mutedRoomIds: Set<string>
   setLocalPeerId: (id: string) => void
   setLocalNickname: (name: string) => void
   setSharedFolder: (path: string | null) => void
@@ -71,9 +72,11 @@ interface AppState {
   incrementUnread: (roomId: string) => void
   clearUnread: (roomId: string) => void
   updateMessageAttachment: (roomId: string, messageId: string, patch: Partial<AttachmentInfo>) => void
+  toggleRoomMute: (roomId: string) => void
+  isRoomMuted: (roomId: string) => boolean
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   localPeerId: '',
   localNickname: '',
   sharedFolder: null,
@@ -134,4 +137,13 @@ export const useAppStore = create<AppState>((set) => ({
       delete next[roomId]
       return { unreadCounts: next }
     }),
+  mutedRoomIds: new Set<string>(),
+  toggleRoomMute: (roomId) =>
+    set((state) => {
+      const next = new Set(state.mutedRoomIds)
+      if (next.has(roomId)) next.delete(roomId)
+      else next.add(roomId)
+      return { mutedRoomIds: next }
+    }),
+  isRoomMuted: (roomId) => get().mutedRoomIds.has(roomId),
 }))

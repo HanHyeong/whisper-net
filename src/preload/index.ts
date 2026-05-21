@@ -34,6 +34,8 @@ const api = {
   downloadPeerFiles: (ip: string, discoveryPort: number, files: string[], destDir: string, basePath?: string) => ipcRenderer.invoke('net:download-peer-files', ip, discoveryPort, files, destDir, basePath),
   setBadgeCount: (count: number) => ipcRenderer.invoke('app:set-badge-count', count),
   setBadgeOverlay: (dataUrl: string | null) => ipcRenderer.invoke('app:set-badge-overlay', dataUrl),
+  setRoomMute: (roomId: string, muted: boolean) => ipcRenderer.invoke('app:set-room-mute', roomId, muted),
+  getRoomMute: (roomId: string) => ipcRenderer.invoke('app:get-room-mute', roomId),
 
   onPeers: (cb: (peers: any[]) => void) => {
     const handler = (_: any, peers: any[]) => cb(peers)

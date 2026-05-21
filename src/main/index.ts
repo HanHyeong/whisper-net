@@ -17,6 +17,7 @@ let mainWin: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
 let unreadMessageCount = 0
+const mutedRoomIds = new Set<string>()
 
 // Badge handlers (registered once globally to avoid duplicate registration)
 ipcMain.handle('app:set-badge-count', (_, count: number) => {
@@ -171,7 +172,7 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   network.on('message', (msg) => {
     sendToRenderer('network:message', msg)
     // Flash taskbar (Windows) or bounce dock (macOS) when not focused
-    if (!win.isDestroyed() && !win.isFocused()) {
+    if (!win.isDestroyed() && !win.isFocused() && !mutedRoomIds.has(msg.roomId)) {
       if (process.platform === 'win32') {
         win.flashFrame(true)
       }
@@ -398,6 +399,13 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   })
   ipcMain.handle('app:get-shared-folder', () => {
     return loadConfig().sharedPath || null
+  })
+  ipcMain.handle('app:set-room-mute', (_, roomId: string, muted: boolean) => {
+    if (muted) mutedRoomIds.add(roomId)
+    else mutedRoomIds.delete(roomId)
+  })
+  ipcMain.handle('app:get-room-mute', (_, roomId: string) => {
+    return mutedRoomIds.has(roomId)
   })
   ipcMain.handle('app:select-download-folder', async () => {
     const result = await dialog.showOpenDialog(win, { properties: ['openDirectory'] })

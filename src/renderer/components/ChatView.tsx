@@ -18,7 +18,8 @@ function formatFileSize(bytes: number): string {
 }
 
 export default function ChatView({ room, onSendFileAttachment, onDownloadAttachment }: Props) {
-  const { localPeerId } = useAppStore()
+  const { localPeerId, isRoomMuted, toggleRoomMute } = useAppStore()
+  const muted = isRoomMuted(room.roomId)
   const [text, setText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -56,6 +57,17 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
           <span className="text-xs text-gray-500">{room.members.length}명 참여중 · {room.type === 'public' ? '개방형' : '비밀형'}</span>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => {
+              const next = !muted
+              toggleRoomMute(room.roomId)
+              window.whisperAPI.setRoomMute(room.roomId, next)
+            }}
+            className={`text-xs px-2 py-1.5 rounded border border-gray-600 ${muted ? 'bg-gray-700 text-gray-400' : 'bg-gray-700 text-yellow-400'}`}
+            title={muted ? '알림 켜기' : '알림 끄기'}
+          >
+            {muted ? '🔕' : '🔔'}
+          </button>
           <button
             onClick={onSendFileAttachment}
             className="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded border border-gray-600"
