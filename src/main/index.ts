@@ -18,6 +18,7 @@ let tray: Tray | null = null
 let isQuitting = false
 let unreadMessageCount = 0
 const mutedRoomIds = new Set<string>()
+let showNotificationPreview = loadConfig().showNotificationPreview ?? true
 
 // Badge handlers (registered once globally to avoid duplicate registration)
 ipcMain.handle('app:set-badge-count', (_, count: number) => {
@@ -121,10 +122,12 @@ function showMessageNotification(msg: any) {
   if (!Notification.isSupported()) return
   const title = msg.nickname || 'Whisper Net'
   let body = '새 메시지가 도착했습니다.'
-  if (typeof msg.content === 'string' && msg.content) {
-    body = msg.content.length > 60 ? msg.content.slice(0, 60) + '…' : msg.content
-  } else if (typeof msg.payload?.content === 'string' && msg.payload.content) {
-    body = msg.payload.content.length > 60 ? msg.payload.content.slice(0, 60) + '…' : msg.payload.content
+  if (showNotificationPreview) {
+    if (typeof msg.content === 'string' && msg.content) {
+      body = msg.content.length > 60 ? msg.content.slice(0, 60) + '…' : msg.content
+    } else if (typeof msg.payload?.content === 'string' && msg.payload.content) {
+      body = msg.payload.content.length > 60 ? msg.payload.content.slice(0, 60) + '…' : msg.payload.content
+    }
   }
   const notification = new Notification({ title, body })
   notification.on('click', () => {
@@ -412,6 +415,10 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   })
   ipcMain.handle('app:get-room-mute', (_, roomId: string) => {
     return mutedRoomIds.has(roomId)
+  })
+  ipcMain.handle('app:set-notification-preview', (_, value: boolean) => {
+    showNotificationPreview = value
+    saveConfig({ showNotificationPreview: value })
   })
   ipcMain.handle('app:select-download-folder', async () => {
     const result = await dialog.showOpenDialog(win, { properties: ['openDirectory'] })

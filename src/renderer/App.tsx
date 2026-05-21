@@ -25,6 +25,7 @@ export default function App() {
   const [browsePeer, setBrowsePeer] = useState<Peer | null>(null)
   const [pendingJoinRoom, setPendingJoinRoom] = useState<{ roomId: string; name: string; type: 'public' | 'private' } | null>(null)
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
+  const [showNotificationPreview, setShowNotificationPreview] = useState(true)
 
   // Keep latest activeRoomId in ref to avoid stale closure in event handlers
   const activeRoomIdRef = useRef(activeRoomId)
@@ -88,6 +89,9 @@ export default function App() {
       if (cfg?.sharedPath) {
         setSharedFolder(cfg.sharedPath)
       }
+      if (typeof cfg?.showNotificationPreview === 'boolean') {
+        setShowNotificationPreview(cfg.showNotificationPreview)
+      }
     })
     window.whisperAPI.getRooms().then((list: any) => {
       setRooms(list)
@@ -109,6 +113,10 @@ export default function App() {
     window.whisperAPI.setNickname(name)
     setLocalNickname(name)
     setShowNickname(false)
+  }
+  const handleToggleNotificationPreview = (value: boolean) => {
+    window.whisperAPI.setNotificationPreview(value)
+    setShowNotificationPreview(value)
   }
 
   const handleSetSharedFolder = async () => {
@@ -293,7 +301,9 @@ export default function App() {
       {showNickname && (
         <NicknameModal
           initial={localNickname}
+          showNotificationPreview={showNotificationPreview}
           onSave={handleSetNickname}
+          onToggleNotificationPreview={handleToggleNotificationPreview}
         />
       )}
       {showCreate && (

@@ -36,6 +36,7 @@ const api = {
   setBadgeOverlay: (dataUrl: string | null) => ipcRenderer.invoke('app:set-badge-overlay', dataUrl),
   setRoomMute: (roomId: string, muted: boolean) => ipcRenderer.invoke('app:set-room-mute', roomId, muted),
   getRoomMute: (roomId: string) => ipcRenderer.invoke('app:get-room-mute', roomId),
+  setNotificationPreview: (value: boolean) => ipcRenderer.invoke('app:set-notification-preview', value),
 
   onPeers: (cb: (peers: any[]) => void) => {
     const handler = (_: any, peers: any[]) => cb(peers)
