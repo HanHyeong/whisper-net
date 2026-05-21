@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, Menu, nativeImage, Tray } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Menu, nativeImage, Tray, Notification } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { randomUUID, createHash } from 'crypto'
@@ -16,6 +16,7 @@ let network: NetworkManager | null = null
 let mainWin: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
+let unreadMessageCount = 0
 
 // Badge handlers (registered once globally to avoid duplicate registration)
 ipcMain.handle('app:set-badge-count', (_, count: number) => {
@@ -95,7 +96,7 @@ function createTray() {
       }
     })
     tray.on('right-click', () => {
-      tray.popUpContextMenu(contextMenu)
+      tray!.popUpContextMenu(contextMenu)
     })
   } else {
     // Windows/Linux: context menu + double-click to restore
@@ -107,6 +108,31 @@ function createTray() {
       }
     })
   }
+}
+
+function updateTrayTooltip(count: number) {
+  if (tray) {
+    tray.setToolTip(count > 0 ? `Whisper Net (${count} unread)` : 'Whisper Net')
+  }
+}
+
+function showMessageNotification(msg: any) {
+  if (!Notification.isSupported()) return
+  const title = msg.nickname || 'Whisper Net'
+  let body = '새 메시지가 도착했습니다.'
+  if (typeof msg.content === 'string' && msg.content) {
+    body = msg.content.length > 60 ? msg.content.slice(0, 60) + '…' : msg.content
+  } else if (typeof msg.payload?.content === 'string' && msg.payload.content) {
+    body = msg.payload.content.length > 60 ? msg.payload.content.slice(0, 60) + '…' : msg.payload.content
+  }
+  const notification = new Notification({ title, body })
+  notification.on('click', () => {
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.show()
+      mainWin.focus()
+    }
+  })
+  notification.show()
 }
 
 function createWindow(initialNickname: string, initialSharedPath?: string) {
@@ -152,6 +178,12 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
       if (process.platform === 'darwin' && app.dock) {
         app.dock.bounce('informational')
       }
+      // Notify when hidden / not focused
+      unreadMessageCount++
+      if (!win.isVisible()) {
+        showMessageNotification(msg)
+      }
+      updateTrayTooltip(unreadMessageCount)
     }
   })
   network.on('file:offer', (offer) => {
@@ -415,6 +447,11 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
         app.dock.hide()
       }
     }
+  })
+
+  win.on('show', () => {
+    unreadMessageCount = 0
+    updateTrayTooltip(0)
   })
 
   win.on('closed', () => {
