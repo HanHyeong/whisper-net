@@ -24,6 +24,7 @@ export default function App() {
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [browsePeer, setBrowsePeer] = useState<Peer | null>(null)
   const [pendingJoinRoom, setPendingJoinRoom] = useState<{ roomId: string; name: string; type: 'public' | 'private' } | null>(null)
+  const [alertMessage, setAlertMessage] = useState<string | null>(null)
 
   // Keep latest activeRoomId in ref to avoid stale closure in event handlers
   const activeRoomIdRef = useRef(activeRoomId)
@@ -33,7 +34,7 @@ export default function App() {
     const unsubPeers = window.whisperAPI.onPeers((list) => setPeers(list))
     const unsubRooms = window.whisperAPI.onRooms((list) => setRooms(list))
     const unsubJoinRejected = window.whisperAPI.onJoinRejected(() => {
-      alert('비밀번호가 틀렸습니다.')
+      setAlertMessage('비밀번호가 틀렸습니다.')
     })
     const unsubMsg = window.whisperAPI.onMessage((msg) => {
       addMessage(msg)
@@ -329,6 +330,20 @@ export default function App() {
           onClose={() => { setShowJoinModal(false); setPendingJoinRoom(null) }}
           onJoin={handleJoinRoom}
         />
+      )}
+      {alertMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg w-80 border border-gray-700 shadow-xl">
+            <h3 className="text-lg font-semibold mb-3 text-white">알림</h3>
+            <p className="text-sm text-gray-300 mb-5">{alertMessage}</p>
+            <button
+              onClick={() => setAlertMessage(null)}
+              className="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded text-sm font-medium text-white transition-colors"
+            >
+              확인
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
