@@ -200,6 +200,14 @@ export class NetworkManager extends EventEmitter {
         }
         break
       }
+      case 'room_advertised': {
+        const peer = this.peers.get(msg.peerId)
+        if (peer && msg.payload?.rooms) {
+          peer.rooms = msg.payload.rooms
+          this.emit('peers', this.getPeers())
+        }
+        break
+      }
       case 'file_attachment': {
         const p = msg.payload as FileAttachmentPayload
         const msgId = p.messageId
@@ -308,6 +316,7 @@ export class NetworkManager extends EventEmitter {
     }
     this.rooms.set(roomId, room)
     this.updateDiscoveryRooms()
+    this.advertiseRooms()
     return room
   }
 
@@ -538,6 +547,26 @@ export class NetworkManager extends EventEmitter {
       ;[a[i], a[j]] = [a[j], a[i]]
     }
     return a
+  }
+
+  private advertiseRooms() {
+    const rooms = this.getRooms().map((r) => ({
+      roomId: r.roomId,
+      name: r.name,
+      type: r.type,
+      memberCount: r.members.size,
+    }))
+    const msg: ProtocolMessage = {
+      type: 'room_advertised',
+      peerId: this.local.peerId,
+      nickname: this.local.nickname,
+      timestamp: Date.now(),
+      payload: { rooms },
+    }
+    for (const peerId of this.peers.keys()) {
+      if (peerId === this.local.peerId) continue
+      this.sendDirect(peerId, msg)
+    }
   }
 
   private sendDirect(peerId: string, msg: ProtocolMessage) {

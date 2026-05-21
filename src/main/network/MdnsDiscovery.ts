@@ -77,8 +77,21 @@ export class MdnsDiscovery extends EventEmitter {
 
   setRooms(rooms: PeerInfo['rooms']) {
     this.rooms = rooms
-    if (this.service) {
-      this.service.txt.rooms = JSON.stringify(rooms)
+    if (this.service && this.bonjour) {
+      this.service.stop()
+      this.service = this.bonjour.publish({
+        name: `whisper-${this.peerId}`,
+        type: SERVICE_TYPE,
+        protocol: SERVICE_PROTOCOL,
+        port: this.tcpPort,
+        txt: {
+          peerId: this.peerId,
+          nickname: this.nickname,
+          rooms: JSON.stringify(rooms),
+          discoveryPort: String(this.discoveryPort),
+          ip: this.ip,
+        },
+      })
     }
   }
 

@@ -25,6 +25,7 @@ export type MessageType =
   | 'text_message'
   | 'file_attachment'
   | 'nickname_changed'
+  | 'room_advertised'
   | 'file_offer'
   | 'file_accept'
   | 'file_reject'
