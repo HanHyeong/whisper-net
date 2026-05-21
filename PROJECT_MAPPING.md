@@ -1,7 +1,7 @@
 # Whisper Net — Project Mapping Document
 
 > **목적**: 유지보수 및 신규 기능 개발 시 코드베이스 탐색 시간을 최소화하기 위한 전체 맵핑 문서  
-> **버전**: 1.4.1 (package.json 기준)  
+> **버전**: 1.5.0 (package.json 기준)  
 > **작성일**: 2026-05-20  
 > **프로젝트 유형**: Electron 기반 P2P LAN 메신저 데스크톱 앱
 
@@ -14,7 +14,7 @@
 | 항목 | 내용 |
 |------|------|
 | **이름** | whisper-net |
-| **버전** | 1.4.1 |
+| **버전** | 1.5.0 |
 | **라이선스** | MIT |
 | **메인 엔트리** | `./out/main/index.js` (빌드 후) |
 | **앱 ID** | `com.whisper-net.app` |
@@ -195,6 +195,8 @@ app.whenReady()
 | `app:show-in-folder` | R→M | 파일이 있는 폴터 열기 | ChatView.tsx |
 | `net:list-peer-files` | R→M | 피어 공유 폴터 목록 조회 | SharedFileBrowser.tsx |
 | `net:download-peer-files` | R→M | 피어 파일 다중 다운로드 | SharedFileBrowser.tsx |
+| `app:set-room-mute` | R→M | 대화방 알림 끄기/켜기 | ChatView.tsx |
+| `app:get-room-mute` | R→M | 대화방 알림 상태 조회 | ChatView.tsx |
 | `app:renderer-ready` | R→M | 렌더러 준비 완료 신호 | App.tsx |
 
 **Renderer → Main 이벤트 (push)**:
@@ -206,6 +208,8 @@ app.whenReady()
 | `network:file:offer` | M→R | 파일 전송 요청 수신 | App.tsx |
 | `network:file:chunk` | M→R | 파일 청크 수신 | index.ts (writeStream) |
 | `network:local` | M→R | 로컬 피어 정보 전달 | App.tsx |
+| `network:rooms` | M→R | 방 목록 업데이트 | App.tsx |
+| `network:join-rejected` | M→R | 방 참여 거부 (비밀번호 불일치) | App.tsx |
 | `file:progress` | M→R | 전송 진행률 | App.tsx |
 | `file:complete` | M→R | 전송 완료 | App.tsx |
 
@@ -855,6 +859,8 @@ AppState {
 | UI 깨짐/스타일 이슈 | `tailwind.config.js`, `index.css` | content 경로 또는 클래스 오류 |
 | 첨부 이미지 미리보기 안 됨 | `ChatView.tsx`, `index.ts` | dataUrl 미생성 또는 MIME 타입 |
 | 트레이 아이콘 안 보임 / 닫기 시 종료됨 | `index.ts` (`createTray`, `close` 이벤트) | `build/icon.png` 경로 누락 또는 `isQuitting` 플래그 미설정 |
+| 비밀방 비밀번호 틀려도 참여된 것처럼 보임 | `NetworkManager.ts` (`joinRoom` stub) | 비밀번호 확인 전에 로컬 stub 방을 미리 생성 |
+| 비밀방 참여 거부 시 알림 없음 | `NetworkManager.ts`, `App.tsx` | `leave_room` 처리 및 `join:rejected` 이벤트 누락 |
 
 ---
 
