@@ -86,14 +86,27 @@ function createTray() {
       },
     },
   ])
-  tray.setContextMenu(contextMenu)
-
-  tray.on('double-click', () => {
-    if (mainWin && !mainWin.isDestroyed()) {
-      mainWin.show()
-      mainWin.focus()
-    }
-  })
+  if (process.platform === 'darwin') {
+    // macOS: left-click restores window, right-click shows menu
+    tray.on('click', () => {
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.show()
+        mainWin.focus()
+      }
+    })
+    tray.on('right-click', () => {
+      tray.popUpContextMenu(contextMenu)
+    })
+  } else {
+    // Windows/Linux: context menu + double-click to restore
+    tray.setContextMenu(contextMenu)
+    tray.on('double-click', () => {
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.show()
+        mainWin.focus()
+      }
+    })
+  }
 }
 
 function createWindow(initialNickname: string, initialSharedPath?: string) {
