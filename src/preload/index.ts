@@ -42,6 +42,11 @@ const api = {
     ipcRenderer.on('network:peers', handler)
     return () => ipcRenderer.removeListener('network:peers', handler)
   },
+  onRooms: (cb: (rooms: any[]) => void) => {
+    const handler = (_: any, rooms: any[]) => cb(rooms)
+    ipcRenderer.on('network:rooms', handler)
+    return () => ipcRenderer.removeListener('network:rooms', handler)
+  },
   onMessage: (cb: (msg: any) => void) => {
     const handler = (_: any, msg: any) => cb(msg)
     ipcRenderer.on('network:message', handler)

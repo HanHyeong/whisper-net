@@ -352,22 +352,8 @@ export class NetworkManager extends EventEmitter {
           timestamp: Date.now(),
           payload,
         })
-        // create local stub until ack
-        const stub: Room = {
-          roomId,
-          name: name || 'Unknown',
-          type: type || 'public',
-          // include owner peerId so we can send messages to them immediately
-          members: new Set([this.local.peerId, peer.peerId]),
-          messages: [],
-        }
-        if (type === 'private' && password) {
-          stub.encryptionKey = deriveKey(password, roomId)
-        } else {
-          stub.encryptionKey = deriveRoomKey(roomId)
-        }
-        this.rooms.set(roomId, stub)
-        this.updateDiscoveryRooms()  // advertise that I have this room
+        // Do NOT create a local stub here. Wait for room_members (success)
+        // or leave_room (rejected) from the owner.
         return
       }
     }

@@ -169,6 +169,9 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   network.on('peers', (peers) => {
     sendToRenderer('network:peers', peers)
   })
+  network.on('rooms', (rooms) => {
+    sendToRenderer('network:rooms', rooms)
+  })
   network.on('message', (msg) => {
     sendToRenderer('network:message', msg)
     // Flash taskbar (Windows) or bounce dock (macOS) when not focused
