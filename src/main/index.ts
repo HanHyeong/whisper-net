@@ -98,7 +98,10 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
     getSharedPath: () => ipcState.network?.getSharedPath() ?? ipcState.initialSharedPath ?? null,
     currentVersion: appVersion,
     enabled: updateEnabled,
+    localPeerId: peerId,
+    localNickname: initialNickname,
   })
+  ipcState.network.wireUpdateService(ipcState.updateService)
   setupUpdateEvents()
   if (updateEnabled) {
     ipcState.updateService.scheduleCheck()

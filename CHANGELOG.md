@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [1.10.0] — 2026-05-22
+
+### Added
+
+- **LAN 업데이트 Phase 2 (미러 분산)**: `update_availability` gossip, Mirror 우선 다운로드 fallback
+- **`UpdateMirrorRegistry`**: 검증 완료 artifact serve·동시 serve 제한(503)
+- **`UpdateSourceSelector`**: gossip 기반 probe 순서·미러 우선 소스 선택
+- **`GET /whisper/update-info`**: 로컬 미러 메타데이터 HTTP 엔드포인트
+
+---
+
 ## [1.9.1] — 2026-05-22
 
 ### Fixed

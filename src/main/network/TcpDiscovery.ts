@@ -4,15 +4,24 @@ import { PeerInfo } from './protocol'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
+import { UpdateAvailabilityPayload } from '../update/types'
 import { isAllowedUpdateSharePath, isHiddenShareBrowsePath, isHiddenShareEntry } from '../update/paths'
 
 const PORT_RANGE = [8080, 8081, 8082, 8083]
+
+export interface UpdateServeBridge {
+  getUpdateInfo(): { channels: string[]; availability: UpdateAvailabilityPayload[] } | null
+  tryBeginServe(relativePath: string): boolean
+  endServe(): void
+  resolveUpdateFile(relativePath: string): string | null
+}
 
 export class TcpDiscovery extends EventEmitter {
   private server: http.Server | null = null
   private port = 0
   private myInfo: { peerId: string; nickname: string; tcpPort: number; rooms: PeerInfo['rooms'] }
   private sharedPath: string | null = null
+  private updateBridge: UpdateServeBridge | null = null
 
   constructor(peerId: string, nickname: string, tcpPort: number) {
     super()
@@ -64,6 +73,8 @@ export class TcpDiscovery extends EventEmitter {
           this.handleShareDownload(req, res)
         } else if (pathname === '/whisper/room-attachment' && req.method === 'GET') {
           this.handleRoomAttachmentDownload(req, res)
+        } else if (pathname === '/whisper/update-info' && req.method === 'GET') {
+          this.handleUpdateInfo(req, res)
         } else {
           res.writeHead(404)
           res.end()
@@ -108,6 +119,10 @@ export class TcpDiscovery extends EventEmitter {
 
   setSharedPath(p: string | null) {
     this.sharedPath = p
+  }
+
+  setUpdateBridge(bridge: UpdateServeBridge | null) {
+    this.updateBridge = bridge
   }
 
   getSharedPath(): string | null {
@@ -178,11 +193,6 @@ export class TcpDiscovery extends EventEmitter {
   }
 
   private handleShareDownload(req: http.IncomingMessage, res: http.ServerResponse) {
-    if (!this.sharedPath) {
-      res.writeHead(404)
-      res.end()
-      return
-    }
     const url = new URL(req.url!, `http://${req.headers.host}`)
     const relativePath = decodeURIComponent(url.pathname.replace('/whisper/share/', ''))
     const normalized = relativePath.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -191,13 +201,48 @@ export class TcpDiscovery extends EventEmitter {
       res.end(JSON.stringify({ error: 'Update path denied' }))
       return
     }
-    const filePath = this.resolveAttachmentFile(relativePath)
+
+    let filePath: string | null = null
+    if (normalized.startsWith('_whisper-updates/') && this.updateBridge) {
+      filePath = this.updateBridge.resolveUpdateFile(normalized)
+    }
+    if (!filePath) {
+      if (!this.sharedPath) {
+        res.writeHead(404)
+        res.end()
+        return
+      }
+      filePath = this.resolveAttachmentFile(relativePath)
+    }
     if (!filePath) {
       res.writeHead(404)
       res.end()
       return
     }
+
+    const isArtifactServe = normalized.includes('/artifacts/')
+    if (isArtifactServe && this.updateBridge) {
+      if (!this.updateBridge.tryBeginServe(normalized)) {
+        res.writeHead(503, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Mirror busy' }))
+        return
+      }
+      this.streamAttachmentFile(res, filePath, path.basename(filePath), () => this.updateBridge?.endServe())
+      return
+    }
+
     this.streamAttachmentFile(res, filePath, path.basename(filePath))
+  }
+
+  private handleUpdateInfo(_req: http.IncomingMessage, res: http.ServerResponse) {
+    const info = this.updateBridge?.getUpdateInfo()
+    if (!info) {
+      res.writeHead(404, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'No update mirror' }))
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(info))
   }
 
   private handleRoomAttachmentDownload(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -281,14 +326,26 @@ export class TcpDiscovery extends EventEmitter {
     return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
   }
 
-  private streamAttachmentFile(res: http.ServerResponse, filePath: string, downloadName: string) {
+  private streamAttachmentFile(
+    res: http.ServerResponse,
+    filePath: string,
+    downloadName: string,
+    onComplete?: () => void
+  ) {
     const stat = fs.statSync(filePath)
     res.writeHead(200, {
       'Content-Type': 'application/octet-stream',
       'Content-Length': stat.size,
       'Content-Disposition': `attachment; filename="${encodeURIComponent(downloadName)}"`,
     })
-    fs.createReadStream(filePath).pipe(res)
+    const stream = fs.createReadStream(filePath)
+    const finish = () => {
+      onComplete?.()
+    }
+    stream.on('end', finish)
+    stream.on('error', finish)
+    res.on('close', finish)
+    stream.pipe(res)
   }
 
   stop() {

@@ -34,6 +34,7 @@ export type MessageType =
   | 'file_chunk'
   | 'file_complete'
   | 'typing'
+  | 'update_availability'
 
 export interface ProtocolMessage {
   type: MessageType

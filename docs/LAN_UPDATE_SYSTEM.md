@@ -1,9 +1,9 @@
 # LAN 업데이트 시스템 설계서
 
-> **대상 버전**: 1.9.0 (예정)  
+> **대상 버전**: 1.10.0  
 > **목적**: 전자서명(Apple/Microsoft 코드 서명) 없이, **공유폴더 + P2P 미러** 기반 LAN 업데이트 배포  
-> **상태**: Phase 1 구현 중 (2026-05-22)  
-> **관련 문서**: [PROJECT_MAPPING.md](../PROJECT_MAPPING.md), [AGENTS.md](../AGENTS.md)
+> **상태**: Phase 2 구현 완료 (2026-05-22)  
+> **관련 문서**: [PROJECT_MAPPING.md](../PROJECT_MAPPING.md), [AGENTS.md](../AGENTS.md), **[LAN_UPDATE_GUIDE.md](./LAN_UPDATE_GUIDE.md)** (배포·사용 가이드)
 
 ---
 
@@ -604,15 +604,16 @@ artifacts/{platform-arch}/*
 
 **완료 기준**: IT Origin에서 signed update 다운로드·검증·installer open.
 
-### Phase 2 — Mirror + Gossip
+### Phase 2 — Mirror + Gossip ✅
 
-| # | 작업 |
-|---|------|
-| 1 | `update_availability` protocol + handler |
-| 2 | `UpdateMirrorRegistry` + serve limits |
-| 3 | `UpdateSourceSelector` fallback |
-| 4 | 자동 check 스케줄 + `update:available` push |
-| 5 | E2E: 3 PC — Origin 1 + Mirror 1 + Leecher 1 |
+| # | 작업 | 상태 |
+|---|------|------|
+| 1 | `update_availability` protocol + handler | ✅ |
+| 2 | `UpdateMirrorRegistry` + serve limits | ✅ |
+| 3 | `UpdateSourceSelector` fallback | ✅ |
+| 4 | `GET /whisper/update-info` | ✅ |
+| 5 | 자동 check 스케줄 + gossip fanout | ✅ |
+| 6 | E2E: 3 PC — Origin 1 + Mirror 1 + Leecher 1 | ⏳ (수동 QA) |
 
 ### Phase 3 — Hardening
 

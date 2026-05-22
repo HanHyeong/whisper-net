@@ -16,6 +16,7 @@ import {
   RoomClosedPayload,
   RoomMembersPayload,
 } from './protocol'
+import { UpdateAvailabilityPayload } from '../update/types'
 import { ChatMessage, LocalPeer } from './types'
 
 export interface MessageServiceDeps {
@@ -79,7 +80,18 @@ export class MessageService {
       case 'discover_ack':
         this.handleDiscoverAck(msg, socket)
         break
+      case 'update_availability':
+        if (msg.payload && this.updateAvailabilityHandler) {
+          this.updateAvailabilityHandler(msg.peerId, msg.payload)
+        }
+        break
     }
+  }
+
+  private updateAvailabilityHandler?: (peerId: string, payload: UpdateAvailabilityPayload) => void
+
+  setUpdateAvailabilityHandler(handler: (peerId: string, payload: UpdateAvailabilityPayload) => void) {
+    this.updateAvailabilityHandler = handler
   }
 
   sendText(roomId: string, content: string) {

@@ -48,13 +48,47 @@ export interface ChannelPointer {
   publisherKeyId: string
 }
 
+export interface UpdateAvailabilityPayload {
+  channel: UpdateChannel
+  version: string
+  manifestId: string
+  publisherKeyId: string
+  platform: string
+  arch: string
+  artifactSha256: string
+  artifactSize: number
+  role: 'origin' | 'mirror'
+  manifestRelativePath: string
+  manifestSigRelativePath: string
+  artifactRelativePath: string
+  activeServes?: number
+}
+
+export interface UpdateSourceCandidate {
+  peerId: string
+  nickname: string
+  ip: string
+  discoveryPort: number
+  role: 'origin' | 'mirror'
+  activeServes: number
+}
+
+export interface MirrorStatus {
+  enabled: boolean
+  role: 'origin' | 'mirror' | null
+  availability: UpdateAvailabilityPayload | null
+  activeServes: number
+  maxConcurrentServes: number
+}
+
 export interface UpdateCheckResult {
   status: 'up_to_date' | 'available' | 'error'
   currentVersion: string
   channel: UpdateChannel
   manifest?: ReleaseManifest
   artifact?: ArtifactEntry
-  source?: { peerId: string; nickname: string; ip: string; discoveryPort: number }
+  source?: { peerId: string; nickname: string; ip: string; discoveryPort: number; role?: 'origin' | 'mirror' }
+  mirrorCount?: number
   error?: VerifyErrorCode
   message?: string
 }

@@ -7,6 +7,7 @@ import { RoomService } from './RoomService'
 import { MessageService } from './MessageService'
 import { PeerInfo } from './protocol'
 import { LocalPeer, Room } from './types'
+import { UpdateService } from '../update/UpdateService'
 
 export type { LocalPeer, Room, ChatMessage, AttachmentInfo } from './types'
 
@@ -17,6 +18,7 @@ export class NetworkManager extends EventEmitter {
   private roomService: RoomService
   private peerSync: PeerSyncService
   private messageService: MessageService
+  private updateService: UpdateService | null = null
 
   constructor(private local: LocalPeer) {
     super()
@@ -223,8 +225,19 @@ export class NetworkManager extends EventEmitter {
     return this.discovery.getDiscoveryPort()
   }
 
+  wireUpdateService(service: UpdateService) {
+    this.updateService = service
+    service.setSendDirect((peerId, msg) => this.connectionPool.send(peerId, msg))
+    this.messageService.setUpdateAvailabilityHandler((peerId, payload) => {
+      service.handleAvailabilityGossip(peerId, payload)
+    })
+    this.discovery.setUpdateBridge(service)
+    service.initializeMirror()
+  }
+
   private handlePeerDisconnect(peerId: string) {
     if (!this.peerRegistry.has(peerId)) return
+    this.updateService?.onPeerLeft(peerId)
     this.peerRegistry.remove(peerId)
     this.connectionPool.disconnect(peerId)
     this.roomService.removeMemberFromAllRooms(peerId)

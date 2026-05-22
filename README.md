@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.7.0-blue">
+  <img src="https://img.shields.io/badge/version-1.10.0-blue">
   <img src="https://img.shields.io/badge/Electron-30.0.8-47848F?logo=electron&logoColor=white">
   <img src="https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=black">
   <img src="https://img.shields.io/badge/TypeScript-5.4.5-3178C6?logo=typescript&logoColor=white">
@@ -29,7 +29,7 @@
 > - 프라이버시 보장 (메시지가 서버를 거치지 않음, E2E 암호화)
 > - 파일 공유 내장 (공유 폴터 + 대화방 첨부)
 
-**현재 버전: 1.7.0** — [CHANGELOG.md](./CHANGELOG.md)
+**현재 버전: 1.10.0** — [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 
@@ -68,6 +68,13 @@
 - 방장이 나가도 **멤버들이 계속 대화** 가능
 - 방장 재접속 시 기존 방으로 **재가입** 가능
 - 멤버십 자동 동기화 (ROOM_MEMBERS 프로토콜)
+
+### 📦 LAN 업데이트 (v1.9.0+)
+- **서명·검증 배포**: Ed25519 manifest + SHA-256 무결성 검증
+- **Origin + Mirror**: IT 공유폴더 배포, 검증 완료 PC가 미러로 부하 분산
+- **수동 설치 UX**: Sidebar 버전 클릭 → 확인 → 다운로드 → 설치 파일 열기
+- **인터넷 불필요**: 같은 LAN에서만 동작
+- 📖 **상세 가이드**: [docs/LAN_UPDATE_GUIDE.md](./docs/LAN_UPDATE_GUIDE.md)
 
 ---
 
@@ -172,9 +179,28 @@ npm run dist
 ```
 
 플랫폼별 출력:
-- **macOS**: `dist/Whisper Net-1.7.0.dmg`
-- **Windows**: `dist/Whisper Net Setup 1.7.0.exe`
-- **Linux**: `dist/Whisper Net-1.7.0.AppImage`
+- **macOS**: `dist/Whisper Net-1.10.0.dmg`
+- **Windows**: `dist/Whisper Net Setup 1.10.0.exe`
+- **Linux**: `dist/Whisper Net-1.10.0.AppImage`
+
+### LAN 업데이트 배포 (IT)
+
+사무실 LAN 내부에서 서명된 업데이트를 배포하려면:
+
+```bash
+# 1. 설치 파일 빌드
+npm run dist
+
+# 2. 릴리스 팩 서명
+npm run sign-release -- --version 1.10.0 --artifacts-dir ./dist --out ./release-pack
+
+# 3. IT Origin PC 공유폴더에 복사
+#    release-pack/_whisper-updates/verified/ → {sharedPath}/_whisper-updates/verified/
+```
+
+사용자는 Sidebar **버전 번호** 클릭 → 확인 → 다운로드 → 설치.
+
+전체 절차: **[docs/LAN_UPDATE_GUIDE.md](./docs/LAN_UPDATE_GUIDE.md)** | 설계: [docs/LAN_UPDATE_SYSTEM.md](./docs/LAN_UPDATE_SYSTEM.md)
 
 ---
 
@@ -204,6 +230,12 @@ npm run dist
 - 폴터 선택 후 네트워크 피어들에게 파일 공유
 - 피어의 📁 버튼 클릭으로 파일/하위폴터 탐색 및 다운로드
 
+### 6. 업데이트 확인 (LAN)
+- 사이드바 하단 **버전 번호** (예: `v1.10.0`) 클릭
+- **확인** → LAN Origin/Mirror에서 새 버전 검색
+- **다운로드** → 서명·해시 검증 후 **설치 파일 열기** (OS 수동 설치)
+- IT 배포 방법: [docs/LAN_UPDATE_GUIDE.md](./docs/LAN_UPDATE_GUIDE.md)
+
 ---
 
 ## ⚙️ 설정 파일
@@ -215,9 +247,18 @@ npm run dist
 ```json
 {
   "nickname": "사용자 닉네임",
-  "sharedPath": "/Users/xxx/Documents/shared"
+  "sharedPath": "/Users/xxx/Documents/shared",
+  "update": {
+    "channel": "stable",
+    "checkOnStartup": true,
+    "checkIntervalHours": 6,
+    "mirrorEnabled": true,
+    "maxConcurrentServes": 2
+  }
 }
 ```
+
+업데이트 설정 상세: [docs/LAN_UPDATE_GUIDE.md](./docs/LAN_UPDATE_GUIDE.md#6-설정-whisper-configjson)
 
 > ⚠️ **주의**: 한 PC에서 여러 인스턴스를 실행하려면 설정 파일을 백업/이동하세요. 같은 설정 파일을 공유하면 peerId 충돌이 발생할 수 있습니다.
 
@@ -231,6 +272,7 @@ npm run dist
 | **메시지 암호화** | AES-256-GCM (비밀방: PBKDF2 10만 회, 일반방: roomId 기반) |
 | **비밀방** | SHA-256 해시로 비밀번호 검증 |
 | **파일 접근** | 공유 폴터 내 `_roomsFiles/` 경로만 접근 가능 |
+| **LAN 업데이트** | Ed25519 manifest 서명 + SHA-256 검증, `verified/` 경로만 HTTP serve |
 | **Path Traversal** | `path.resolve()` 기반 검증으로 상위 디렉토리 접근 차단 |
 
 ---
@@ -290,6 +332,8 @@ whisper-net/
 | 문서 | 용도 |
 |------|------|
 | [CHANGELOG.md](./CHANGELOG.md) | 버전별 변경 이력 |
+| [docs/LAN_UPDATE_GUIDE.md](./docs/LAN_UPDATE_GUIDE.md) | **LAN 업데이트 배포·사용 가이드** |
+| [docs/LAN_UPDATE_SYSTEM.md](./docs/LAN_UPDATE_SYSTEM.md) | LAN 업데이트 설계·프로토콜 |
 | [REFACTORING_PLAN.md](./REFACTORING_PLAN.md) | 방 발견·동기화 리팩토링 (1.7.0) |
 | [AGENTS.md](./AGENTS.md) | AI 코딩 에이전트 빠른 레퍼런스 |
 | [docs/E2E_VISUAL_REVIEW_AUTOMATION.md](./docs/E2E_VISUAL_REVIEW_AUTOMATION.md) | UI 검수 자동화 (Playwright) |

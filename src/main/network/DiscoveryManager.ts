@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { TcpDiscovery } from './TcpDiscovery'
+import { TcpDiscovery, UpdateServeBridge } from './TcpDiscovery'
 import { MdnsDiscovery } from './MdnsDiscovery'
 import { PeerRegistry } from './PeerRegistry'
 import { PeerInfo, RoomInfo } from './protocol'
@@ -89,6 +89,10 @@ export class DiscoveryManager extends EventEmitter {
 
   getDiscoveryPort(): number {
     return this.tcp.getPort()
+  }
+
+  setUpdateBridge(bridge: UpdateServeBridge | null) {
+    this.tcp.setUpdateBridge(bridge)
   }
 
   stop() {
