@@ -54,7 +54,9 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
       <header className="px-4 py-3 border-b border-gray-700 bg-gray-800 flex items-center justify-between">
         <div>
           <h3 className="font-semibold">{room.name}</h3>
-          <span className="text-xs text-gray-500">{room.members.length}명 참여중 · {room.type === 'public' ? '개방형' : '비밀형'}</span>
+          <span className="text-xs text-gray-500">
+            {(Array.isArray(room.members) ? room.members.length : 0)}명 참여중 · {room.type === 'public' ? '개방형' : '비밀형'}
+          </span>
         </div>
         <div className="flex gap-2">
           <button

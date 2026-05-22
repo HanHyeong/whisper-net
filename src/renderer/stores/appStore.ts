@@ -37,6 +37,18 @@ export interface Room {
   messages: ChatMessage[]
 }
 
+function normalizeRoom(room: Room): Room {
+  return {
+    ...room,
+    members: Array.isArray(room.members) ? room.members : [],
+    messages: room.messages ?? [],
+  }
+}
+
+function normalizeRooms(rooms: Room[]): Room[] {
+  return rooms.map(normalizeRoom)
+}
+
 export interface FileTransfer {
   transferId: string
   fileName: string
@@ -89,8 +101,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLocalNickname: (name) => set({ localNickname: name }),
   setSharedFolder: (path) => set({ sharedFolder: path }),
   setPeers: (peers) => set({ peers }),
-  setRooms: (rooms) => set({ rooms }),
-  addRoom: (room) => set((state) => ({ rooms: [...state.rooms, room] })),
+  setRooms: (rooms) => set({ rooms: normalizeRooms(rooms) }),
+  addRoom: (room) => set((state) => ({ rooms: [...state.rooms, normalizeRoom(room)] })),
   addMessage: (msg) =>
     set((state) => ({
       rooms: state.rooms.map((r) =>

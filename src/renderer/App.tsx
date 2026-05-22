@@ -34,8 +34,18 @@ export default function App() {
   useEffect(() => {
     const unsubPeers = window.whisperAPI.onPeers((list) => setPeers(list))
     const unsubRooms = window.whisperAPI.onRooms((list) => setRooms(list))
-    const unsubJoinRejected = window.whisperAPI.onJoinRejected(() => {
-      setAlertMessage('비밀번호가 틀렸습니다.')
+    const unsubJoinRejected = window.whisperAPI.onJoinRejected((info) => {
+      setShowJoinModal(false)
+      setPendingJoinRoom(null)
+      setAlertMessage(
+        info.reason === 'wrong_password' ? '비밀번호가 틀렸습니다.' : '방 참여가 거부되었습니다.'
+      )
+    })
+    const unsubRoomJoined = window.whisperAPI.onRoomJoined((roomId) => {
+      setShowJoinModal(false)
+      setPendingJoinRoom(null)
+      setActiveRoom(roomId)
+      clearUnread(roomId)
     })
     const unsubMsg = window.whisperAPI.onMessage((msg) => {
       addMessage(msg)
@@ -101,6 +111,7 @@ export default function App() {
       unsubPeers()
       unsubRooms()
       unsubJoinRejected()
+      unsubRoomJoined()
       unsubMsg()
       unsubOffer()
       unsubLocal()
@@ -133,7 +144,6 @@ export default function App() {
   const handleRequestJoinRoom = (roomId: string, name: string, type: 'public' | 'private') => {
     if (type === 'public') {
       window.whisperAPI.joinRoom(roomId, undefined, name, type)
-      window.whisperAPI.getRooms().then((list: any) => setRooms(list))
     } else {
       setPendingJoinRoom({ roomId, name, type })
       setShowJoinModal(true)
@@ -182,7 +192,6 @@ export default function App() {
     const name = pendingJoinRoom?.name
     const type = pendingJoinRoom?.type
     window.whisperAPI.joinRoom(roomId, password, name, type)
-    window.whisperAPI.getRooms().then((list: any) => setRooms(list))
   }
 
   const handleBrowsePeerFiles = (peer: Peer) => {
@@ -254,7 +263,7 @@ export default function App() {
               <p>왼쪽에서 대화방을 선택하거나 새로 만드세요.</p>
               <p className="text-sm mt-2 text-gray-600">네트워크 피어 {peers.length}명 발견됨</p>
               {peers.length === 0 && (
-                <p className="text-xs mt-1 text-gray-700">TCP 8080 스캔 중이거나 mDNS 폴팅 대기 중...</p>
+                <p className="text-xs mt-1 text-gray-700">피어 탐색 중…</p>
               )}
             </div>
           </div>
@@ -310,6 +319,10 @@ export default function App() {
         <CreateRoomModal
           onClose={() => setShowCreate(false)}
           onCreated={(room) => {
+            if (room?.error) {
+              setAlertMessage(room.error)
+              return
+            }
             addRoom(room)
             setActiveRoom(room.roomId)
             setShowCreate(false)

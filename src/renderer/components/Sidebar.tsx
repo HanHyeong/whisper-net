@@ -92,7 +92,7 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
               </div>
             </li>
           ))}
-          {peers.length === 0 && <li className="text-xs text-gray-600 px-2">No peers (scanning TCP 8080...)</li>}
+          {peers.length === 0 && <li className="text-xs text-gray-600 px-2">No peers (scanning…)</li>}
         </ul>
       </div>
 

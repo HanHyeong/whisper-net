@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-1.7.0-blue">
   <img src="https://img.shields.io/badge/Electron-30.0.8-47848F?logo=electron&logoColor=white">
   <img src="https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=black">
   <img src="https://img.shields.io/badge/TypeScript-5.4.5-3178C6?logo=typescript&logoColor=white">
@@ -27,6 +28,8 @@
 > - 서버 운영 비용 없음 (완전 물리적 P2P)
 > - 프라이버시 보장 (메시지가 서버를 거치지 않음, E2E 암호화)
 > - 파일 공유 내장 (공유 폴터 + 대화방 첨부)
+
+**현재 버전: 1.7.0** — [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 
@@ -152,6 +155,16 @@ npm run build
 npm start
 ```
 
+### E2E 테스트
+
+```bash
+npm run build
+npm run test:e2e
+```
+
+- Playwright로 실제 Electron UI 검수 (방 발견·join·비밀방 등 7 tests)
+- 상세: [docs/E2E_VISUAL_REVIEW_AUTOMATION.md](./docs/E2E_VISUAL_REVIEW_AUTOMATION.md)
+
 ### 📦 설치 파일 생성 (배포)
 
 ```bash
@@ -159,9 +172,9 @@ npm run dist
 ```
 
 플랫폼별 출력:
-- **macOS**: `dist/Whisper Net-0.1.0.dmg`
-- **Windows**: `dist/Whisper Net Setup 0.1.0.exe`
-- **Linux**: `dist/Whisper Net-0.1.0.AppImage`
+- **macOS**: `dist/Whisper Net-1.7.0.dmg`
+- **Windows**: `dist/Whisper Net Setup 1.7.0.exe`
+- **Linux**: `dist/Whisper Net-1.7.0.AppImage`
 
 ---
 
@@ -226,7 +239,7 @@ npm run dist
 
 - macOS에서 mDNS 활성화 시 "컴퓨터 이름 변경" 알림이 표시될 수 있음 (무시 가능)
 - DevTools에서 CSP 경고는 개발 모드 전용이며, 빌드 후 사라짐
-- 같은 PC에서 다중 인스턴스 실행 시 `whisper-config.json` 충돌 가능
+- 같은 PC에서 다중 인스턴스 실행 시 `whisper-config.json` 충돌 가능 — E2E/테스트는 `--user-data-dir` 분리 권장
 - 이전 버전(v1.0.x) 피어와의 교차 사용 시 암호화 메시지가 평문으로 표시될 수 있음
 - 일부 네트워크(엔터프라이즈/VPN)에서 mDNS 멀티캐스트가 차단될 수 있음
 
@@ -243,7 +256,7 @@ npm run dist
 | P2P 네트워크 | TCP 소켓 (Node.js `net`), HTTP 서버 |
 | 서비스 발견 | mDNS (Bonjour) 기반 이벤트 발견 + HTTP 메타데이터 동기화 |
 | 파일 전송 | HTTP GET (공유 폴터), TCP 청크 (1:1 직접 전송) |
-| 테스트 | Playwright (E2E 스캐폴드) |
+| 테스트 | Playwright E2E — `npm run test:e2e` (7 tests) |
 
 ---
 
@@ -251,41 +264,37 @@ npm run dist
 
 ```
 whisper-net/
-├── build/                  # 앱 아이콘 (icon.png, icon.svg)
-├── out/                    # 빌드 출력물 (electron-vite)
+├── build/                  # 앱 아이콘
+├── docs/                   # E2E·적용 가이드
+├── out/                    # electron-vite 빌드 출력
 ├── src/
-│   ├── main/               # Electron 메인 프로세스
-│   │   ├── index.ts        # 윈도우 생성, IPC 핸들러
-│   │   ├── network/        # P2P 네트워크 코어
-│   │   │   ├── NetworkManager.ts    # 방/메시지/피어 관리
-│   │   │   ├── TcpDiscovery.ts      # HTTP 발견 서버
-│   │   │   ├── TcpServer.ts         # TCP 수신 서버
-│   │   │   ├── TcpClient.ts         # TCP 발신 클라이언트
-│   │   │   ├── DiscoveryManager.ts  # TCP + mDNS 오케스트레이션
-│   │   │   ├── MdnsDiscovery.ts     # mDNS 폴트백
-│   │   │   ├── protocol.ts          # 메시지 타입/인코딩
-│   │   │   └── crypto.ts            # PBKDF2 + AES-256-GCM
-│   │   └── utils/
-│   │       └── config.ts   # 설정 파일 로드/저장
-│   ├── preload/            # IPC 브리지
-│   │   └── index.ts
-│   └── renderer/           # React 렌더러
-│       ├── App.tsx         # 메인 레이아웃
-│       ├── main.tsx
-│       ├── stores/
-│       │   └── appStore.ts # Zustand 상태 관리
-│       └── components/
-│           ├── Sidebar.tsx          # 피어/방 목록
-│           ├── ChatView.tsx         # 대화 화면
-│           ├── JoinRoomModal.tsx    # 비밀방 참여 모달
-│           ├── CreateRoomModal.tsx  # 방 생성 모달
-│           ├── SharedFileBrowser.tsx# 공유 폴터 탐색기
-│           ├── NicknameModal.tsx    # 닉네임 설정
-│           └── ManualConnectModal.tsx
-├── package.json
-├── tsconfig.json
-└── electron.vite.config.ts
+│   ├── main/               # bootstrap, ipc/, network/, tray.ts
+│   ├── preload/
+│   └── renderer/
+├── tests/
+│   ├── e2e/                # Playwright E2E
+│   └── scenarios/          # 수동 QA 시나리오
+├── AGENTS.md
+├── PROJECT_MAPPING.md
+├── REFACTORING_PLAN.md
+├── CHANGELOG.md
+└── package.json
 ```
+
+> 상세 구조·IPC·프로토콜: [PROJECT_MAPPING.md](./PROJECT_MAPPING.md)
+
+---
+
+## 📚 문서
+
+| 문서 | 용도 |
+|------|------|
+| [CHANGELOG.md](./CHANGELOG.md) | 버전별 변경 이력 |
+| [REFACTORING_PLAN.md](./REFACTORING_PLAN.md) | 방 발견·동기화 리팩토링 (1.7.0) |
+| [AGENTS.md](./AGENTS.md) | AI 코딩 에이전트 빠른 레퍼런스 |
+| [docs/E2E_VISUAL_REVIEW_AUTOMATION.md](./docs/E2E_VISUAL_REVIEW_AUTOMATION.md) | UI 검수 자동화 (Playwright) |
+| [docs/E2E_EXISTING_ELECTRON_PROJECTS.md](./docs/E2E_EXISTING_ELECTRON_PROJECTS.md) | 기존 Electron 프로젝트 적용 가이드 |
+| [tests/scenarios/room-discovery.md](./tests/scenarios/room-discovery.md) | 방 발견 수동 QA |
 
 ---
 

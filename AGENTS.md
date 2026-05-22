@@ -9,7 +9,7 @@
 
 **Whisper Net**은 중앙 서버 없이 동작하는 P2P LAN 메신저 데스크톱 앱입니다. 같은 로컬 네트워크 내 기기들이 mDNS(Bonjour)로 서로를 발견하고, TCP 소켓으로 직접 메시지를 주고받습니다. 메시지는 메모리에만 저장되며 앱 종료 시 삭제됩니다.
 
-- **버전**: 1.6.0
+- **버전**: 1.7.0
 - **라이선스**: MIT
 - **메인 엔트리**: `./out/main/index.js` (빌드 후)
 - **앱 ID**: `com.whisper-net.app`
@@ -50,8 +50,9 @@
 │  preload/index.ts → window.whisperAPI 노출                      │
 ├─────────────────────────────────────────────────────────────────┤
 │  LAYER 1: Main Process (Node.js)                                │
-│  index.ts → BrowserWindow, IPC 핸들러, 파일전송 상태 관리        │
-│  network/ → NetworkManager, DiscoveryManager, TCP/HTTP 서버     │
+│  index.ts → bootstrap, NetworkManager wiring                      │
+│  ipc/* → app/net/file IPC, tray.ts → 트레이·알림                  │
+│  network/ → PeerSync, RoomService, MessageService, TCP/HTTP     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,8 +72,10 @@ whisper-net/
 │   └── renderer/
 ├── src/
 │   ├── main/
-│   │   ├── index.ts          # 앱 진입점, 윈도우 생성, 모든 IPC 핸들러
-│   │   ├── network/          # NetworkManager, DiscoveryManager, TCP/HTTP, crypto, protocol
+│   │   ├── index.ts          # bootstrap (~130줄)
+│   │   ├── ipc/              # appHandlers, networkHandlers, fileTransferHandlers
+│   │   ├── tray.ts           # 트레이·알림
+│   │   ├── network/          # NetworkManager, ConnectionPool, RoomService, …
 │   │   └── utils/
 │   │       └── config.ts     # 설정 파일 로드/저장
 │   ├── preload/
@@ -85,8 +88,18 @@ whisper-net/
 │       ├── stores/
 │       │   └── appStore.ts   # Zustand 글로벌 상태
 │       └── components/       # Sidebar, ChatView, Modals, SharedFileBrowser
-├── tests/e2e/
-│   └── app.spec.ts           # Playwright E2E 테스트
+├── tests/
+│   ├── e2e/
+│   │   ├── app.spec.ts             # 스모크 E2E
+│   │   ├── room-discovery.spec.ts  # 방 발견·join E2E (2인스턴스)
+│   │   └── helpers/electron-app.ts
+│   └── scenarios/
+│       └── room-discovery.md       # 수동 QA 시나리오
+├── docs/
+│   ├── E2E_VISUAL_REVIEW_AUTOMATION.md
+│   └── E2E_EXISTING_ELECTRON_PROJECTS.md
+├── REFACTORING_PLAN.md
+├── CHANGELOG.md
 ├── package.json
 ├── tsconfig.json
 ├── electron.vite.config.ts   # Vite 빌드 설정
@@ -110,6 +123,7 @@ whisper-net/
 | `npm start` | 빌드 후 Electron 실행 (`out/main/index.js`) |
 | `npm run typecheck` | `tsc --noEmit` 타입 검사만 |
 | `npm run preview` | electron-vite preview |
+| `npm run test:e2e` | Playwright E2E (`npm run build` 선행) |
 | `npm run dist` | 빌드 + electron-builder → `dist/` (dmg/exe/AppImage) |
 
 ### 요구사항
@@ -157,8 +171,11 @@ import { ... } from '@renderer/stores/appStore'       // src/renderer/...
 ## 7. 테스트
 
 - **프레임워크**: Playwright (E2E)
-- **테스트 파일**: `tests/e2e/app.spec.ts`
-- **실행**: `npm run build && npx playwright test`
+- **테스트 파일**: `tests/e2e/app.spec.ts`, `tests/e2e/room-discovery.spec.ts`
+- **실행**: `npm run build && npm run test:e2e`
+- **E2E 모드**: `WHISPER_E2E=1` — 빌드된 renderer 로드, DevTools/트레이 비활성
+- **상세 가이드**: [docs/E2E_VISUAL_REVIEW_AUTOMATION.md](./docs/E2E_VISUAL_REVIEW_AUTOMATION.md) (다른 프로젝트 이식용)
+- **기존 Electron 적용**: [docs/E2E_EXISTING_ELECTRON_PROJECTS.md](./docs/E2E_EXISTING_ELECTRON_PROJECTS.md) (필수/선택 작업·체크리스트)
 - **설정**: `fullyParallel: false`, `workers: 1` — Electron 단일 인스턴스 제한
 
 > 상세 테스트 설정 및 수동 테스트 팁은 [PROJECT_MAPPING.md §13](./PROJECT_MAPPING.md) 참조.
@@ -180,7 +197,9 @@ import { ... } from '@renderer/stores/appStore'       // src/renderer/...
 | **메시지 알림** | 포커스를 잃거나 숨겨진 상태에서 시스템 Notification + 트레이 툴팁 |
 | **대화방별 알림 끄기** | ChatView 헤더 종 아이콘 토글. mute 시 알림/플래시/바운스 suppressed |
 | **알림 내용 미리보기 설정** | 설정 모달에서 ON/OFF. OFF 시 "새 메시지가 도착했습니다"만 표시 |
-| **비밀방 생성 유효성 검사** | 비밀번호 빈값 시 생성 버튼 비활성화 |
+| **비밀방 생성 유효성 검사** | Renderer 버튼 비활성 + Main `createRoom` null / IPC `{ error }` |
+| **방 join 확정** | `room_members` 수신 후 로컬 방 생성 (`RoomService.pendingJoins`) |
+| **E2E 모드** | `WHISPER_E2E=1` — 테스트 시 DevTools/트레이 비활성 |
 | **CSP** | `index.html`에 Content-Security-Policy 메타 태그 설정 |
 
 > 상세 보안 모델 및 Path Traversal 방지 로직은 [PROJECT_MAPPING.md §11](./PROJECT_MAPPING.md) 참조.
@@ -202,6 +221,7 @@ import { ... } from '@renderer/stores/appStore'       // src/renderer/...
 
 | 주제 | PROJECT_MAPPING.md 참조 위치 |
 |------|------------------------------|
+| **리팩토링 로드맵 (Phase 0~6)** | [REFACTORING_PLAN.md](./REFACTORING_PLAN.md) |
 | 새 메시지 타입 추가 | §14.1 |
 | 새 네트워크 발견 방식 추가 | §14.2 |
 | UI 컴포넌트 수정/추가 | §14.3 |
@@ -220,13 +240,14 @@ import { ... } from '@renderer/stores/appStore'       // src/renderer/...
 
 `npm run dist` 실행 시 플랫폼별 패키지가 `dist/`에 생성됩니다.
 
-- **macOS**: `dist/Whisper Net-1.6.0.dmg`
-- **Windows**: `dist/Whisper Net Setup 1.6.0.exe`
-- **Linux**: `dist/Whisper Net-1.6.0.AppImage`
+- **macOS**: `dist/Whisper Net-1.7.0.dmg`
+- **Windows**: `dist/Whisper Net Setup 1.7.0.exe`
+- **Linux**: `dist/Whisper Net-1.7.0.AppImage`
 
 빌드 설정은 `package.json`의 `build` 필드에서 관리합니다. 아이콘은 `build/icon.png`를 사용합니다.
 
 ---
 
 *이 문서는 코드나 프로젝트 구조가 변경될 때 함께 업데이트되어야 합니다.*  
+*⚠️ 버전 변경 시 `package.json`, `CHANGELOG.md`도 함께 갱신하세요.*  
 *⚠️ 코드/구조 변경 시 반드시 [PROJECT_MAPPING.md](./PROJECT_MAPPING.md)도 함께 업데이트하세요. 두 문서는 쌍을 이루며, AGENTS.md를 수정했다면 PROJECT_MAPPING.md의 해당 섹션(아키텍처, 디렉토리 구조, IPC 맵, 개발 가이드 등)도 동기화해야 합니다.*

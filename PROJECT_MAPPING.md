@@ -1,8 +1,8 @@
 # Whisper Net — Project Mapping Document
 
 > **목적**: 유지보수 및 신규 기능 개발 시 코드베이스 탐색 시간을 최소화하기 위한 전체 맵핑 문서  
-> **버전**: 1.6.0 (package.json 기준)  
-> **작성일**: 2026-05-20  
+> **버전**: 1.7.0 (package.json 기준)  
+> **최종 갱신**: 2026-05-22  
 > **프로젝트 유형**: Electron 기반 P2P LAN 메신저 데스크톱 앱
 
 ---
@@ -14,7 +14,7 @@
 | 항목 | 내용 |
 |------|------|
 | **이름** | whisper-net |
-| **버전** | 1.6.0 |
+| **버전** | 1.7.0 |
 | **라이선스** | MIT |
 | **메인 엔트리** | `./out/main/index.js` (빌드 후) |
 | **앱 ID** | `com.whisper-net.app` |
@@ -93,18 +93,31 @@ whisper-net/
 │   └── renderer/                   # renderer 빌드 결과
 ├── src/
 │   ├── main/
-│   │   ├── index.ts                # ⭐ 앱 진입점, 윈도우 생성, IPC 핸들러
+│   │   ├── index.ts                # ⭐ 앱 bootstrap, 윈도우 생성
+│   │   ├── ipc/
+│   │   │   ├── context.ts          # IPC 공유 상태
+│   │   │   ├── appHandlers.ts      # app:* IPC
+│   │   │   ├── networkHandlers.ts  # net:* IPC + network 이벤트
+│   │   │   └── fileTransferHandlers.ts # 파일 전송 IPC
+│   │   ├── tray.ts                 # 트레이·시스템 알림
 │   │   ├── network/
-│   │   │   ├── NetworkManager.ts   # ⭐ 네트워크 코어 (방, 메시지, 피어 관리)
+│   │   │   ├── NetworkManager.ts   # ⭐ 네트워크 코디네이터 (wiring facade)
+│   │   │   ├── ConnectionPool.ts   # TCP 송수신 통합
+│   │   │   ├── RoomService.ts      # 방 생성/참여/멤버십
+│   │   │   ├── MessageService.ts   # 메시지 gossip·relay·dedup
+│   │   │   ├── types.ts            # LocalPeer, Room, ChatMessage
 │   │   │   ├── DiscoveryManager.ts # ⭐ 발견 관리 (mDNS + HTTP 오케스트레이션)
-│   │   │   ├── MdnsDiscovery.ts    # mDNS 서비스 발견/발행
+│   │   │   ├── PeerRegistry.ts     # 피어 Map 단일 SSOT
+│   │   │   ├── PeerSyncService.ts  # HTTP pull / debounce / room push
+│   │   │   ├── MdnsDiscovery.ts    # mDNS 서비스 발견/발행 (연결 정보만)
 │   │   │   ├── TcpDiscovery.ts     # HTTP 메타데이터 서버 + 파일 서빙
 │   │   │   ├── TcpServer.ts        # TCP 수신 서버
 │   │   │   ├── TcpClient.ts        # TCP 발신 클라이언트
 │   │   │   ├── protocol.ts         # 메시지 프로토콜 정의
 │   │   │   └── crypto.ts           # 암호화 유틸리티
 │   │   └── utils/
-│   │       └── config.ts           # 설정 파일 로드/저장
+│   │       ├── config.ts           # 설정 파일 로드/저장
+│   │       └── http.ts             # HTTP GET / 파일 다운로드
 │   ├── preload/
 │   │   └── index.ts                # IPC 브리지 (renderer <-> main)
 │   └── renderer/
@@ -123,8 +136,17 @@ whisper-net/
 │           ├── ManualConnectModal.tsx # 수동 IP 연결 모달
 │           └── SharedFileBrowser.tsx # 공유 폴터 탐색기
 ├── tests/
-│   └── e2e/
-│       └── app.spec.ts             # Playwright E2E 테스트
+│   ├── e2e/
+│   │   ├── app.spec.ts
+│   │   ├── room-discovery.spec.ts
+│   │   └── helpers/electron-app.ts
+│   └── scenarios/
+│       └── room-discovery.md
+├── docs/
+│   ├── E2E_VISUAL_REVIEW_AUTOMATION.md
+│   └── E2E_EXISTING_ELECTRON_PROJECTS.md
+├── REFACTORING_PLAN.md
+├── CHANGELOG.md
 ├── package.json
 ├── tsconfig.json
 ├── electron.vite.config.ts         # Vite 빌드 설정
@@ -210,6 +232,7 @@ app.whenReady()
 | `network:file:chunk` | M→R | 파일 청크 수신 | index.ts (writeStream) |
 | `network:local` | M→R | 로컬 피어 정보 전달 | App.tsx |
 | `network:rooms` | M→R | 방 목록 업데이트 | App.tsx |
+| `network:room-joined` | M→R | 방 참여 확정 (`room_members` 후) | App.tsx |
 | `network:join-rejected` | M→R | 방 참여 거부 (비밀번호 불일치) | App.tsx |
 | `file:progress` | M→R | 전송 진행률 | App.tsx |
 | `file:complete` | M→R | 전송 완료 | App.tsx |
@@ -316,7 +339,11 @@ start()
       └── mdns.on('peer:left') -> peers.delete() -> 'peer:left'
 ```
 
-**refreshPeers()**: HTTP GET `/whisper/peers`로 모든 알려진 피어의 최신 정보(닉네임, 방 목록)를 동기화합니다. Sidebar의 🔄 버튼으로 호출됩니다.
+**refreshPeers() / refreshPeer()**: `PeerSyncService`가 HTTP GET `/whisper/peers`로 피어 메타(닉네임, 방 목록)를 동기화합니다. Sidebar 🔄, `peer:joined`, `discover_ack`, startup debounce에서 호출됩니다.
+
+**PeerRegistry**: `DiscoveryManager`·`NetworkManager`가 공유하는 피어 Map SSOT. mDNS는 `rooms`를 덮어쓰지 않고 HTTP/TCP 소스를 우선합니다.
+
+**updateLocalRooms()**: `PeerSyncService` 단일 진입점 — HTTP snapshot(`setLocalRooms`) + TCP `room_advertised` push.
 
 **로컬 정보 조회 메서드**:
 - `getLocalIp()`: TcpDiscovery.getLocalIp() 위임. 비공인 IPv4 우선, 없으면 첫 번째 IPv4
@@ -334,7 +361,7 @@ start()
 
 **TXT 레코드** (자신을 발행할 때 포함):
 ```
-peerId, nickname, rooms (JSON), discoveryPort, ip
+peerId, nickname, discoveryPort, ip (rooms는 HTTP/TCP로 동기화 — mDNS TXT 미포함)
 ```
 
 **주의**: Windows에서 `.local` 도메인 이슈를 피하기 위해 TXT 레코드의 `ip` 필드를 우선 사용합니다.
@@ -622,7 +649,7 @@ AppState {
 │ net:download-peer-files         │ HTTP GET 반복 → destDir에 저장               │
 │ app:set-badge-count             │ macOS dock.setBadge / Linux setBadgeCount    │
 │ app:set-badge-overlay           │ Windows setOverlayIcon (nativeImage)         │
-│ app:renderer-ready              │ network:local 전송 + refreshPeers()          │
+│ app:renderer-ready              │ network:local 전송 + schedulePeerRefresh(500) │
 └─────────────────────────────────┴─────────────────────────────────────────────┘
 ```
 
@@ -789,15 +816,28 @@ AppState {
 
 **프레임워크**: Playwright (E2E)
 
-**테스트 파일**: `tests/e2e/app.spec.ts` (33줄, 2개 테스트)
+**테스트 파일**:
+- `tests/e2e/app.spec.ts` — 앱 실행, 닉네임 스모크
+- `tests/e2e/room-discovery.spec.ts` — 2인스턴스 방 발견·join·비밀방·수동연결
+- `tests/e2e/helpers/electron-app.ts` — launch/피어 연결 헬퍼
+- `tests/scenarios/room-discovery.md` — 수동 QA 시나리오
 
 | 테스트 | 내용 |
 |--------|------|
 | 앱 실행 및 메인 화면 | Electron 앱 실행 → "Whisper Net" 타이틀 가시성 확인 |
 | 닉네임 입력 후 진입 | 닉네임 모달 → "TestUser" 입력 → 사이드바에 표시 확인 |
+| A 선행 방 생성 → B join | Discovered Rooms 표시, join, 메시지 송수신 |
+| B 선행 → A 방 생성 | B에 Discovered Rooms 표시 |
+| 수동 IP 연결 | Manual Connect 후 방 목록 동기화 |
+| 🔄 refresh fallback | refreshPeers 후 Discovered Rooms |
+| 비밀방 join/거부 | 잘못된 비밀번호 알림, 올바른 비밀번호 join |
+
+**실행**: `npm run build && npm run test:e2e`
+
+**E2E 모드** (`WHISPER_E2E=1`): 빌드된 renderer 로드, DevTools/트레이 비활성, `--user-data-dir`로 인스턴스 분리
 
 **Playwright 설정**:
-- `fullyParallel: false`, `workers: 1` (Electron 단일 인스턴스)
+- `fullyParallel: false`, `workers: 1`, `timeout: 120s`
 - `trace: 'on-first-retry'`
 
 ---
@@ -860,10 +900,11 @@ AppState {
 | UI 깨짐/스타일 이슈 | `tailwind.config.js`, `index.css` | content 경로 또는 클래스 오류 |
 | 첨부 이미지 미리보기 안 됨 | `ChatView.tsx`, `index.ts` | dataUrl 미생성 또는 MIME 타입 |
 | 트레이 아이콘 안 보임 / 닫기 시 종료됨 | `index.ts` (`createTray`, `close` 이벤트) | `build/icon.png` 경로 누락 또는 `isQuitting` 플래그 미설정 |
-| 비밀방 비밀번호 틀려도 참여된 것처럼 보임 | `NetworkManager.ts` (`joinRoom` stub) | 비밀번호 확인 전에 로컬 stub 방을 미리 생성 |
-| 비밀방 참여 거부 시 알림 없음 | `NetworkManager.ts`, `App.tsx` | `leave_room` 처리 및 `join:rejected` 이벤트 누락 |
-| 참여자 수 표시 안 됨 ("명 참여중") | `index.ts` (`network:rooms` IPC) | `members`를 `Set`인 채로 본냄. Renderer는 `length`를 읽으려 해서 `undefined` |
-| 비밀방 생성 시 빈 비밀번호 허용 | `CreateRoomModal.tsx` | 비밀번호 빈값 체크 및 버튼 비활성화 누락 |
+| 비밀방 비밀번호 틀려도 참여된 것처럼 보임 | `RoomService.ts` (`pendingJoins`) | ~~비밀번호 확인 전 stub 방 생성~~ Phase 5에서 `room_members` 확인 후 생성 |
+| 비밀방 참여 거부 시 알림 없음 | `RoomService.ts`, `App.tsx` | ~~`leave_room`/`join:rejected` 누락~~ Phase 5에서 모달 닫기 + 알림 |
+| 참여자 수 표시 안 됨 ("명 참여중") | `ipc/context.ts` (`serializeRoom`), `appStore.ts` | ~~`members` Set 직렬화 누락~~ Phase 5에서 배열 정규화 |
+| 비밀방 생성 시 빈 비밀번호 허용 | `RoomService.ts`, `CreateRoomModal.tsx` | ~~클라이언트만 검증~~ Phase 5에서 main `createRoom` null 반환 + IPC error |
+| **Discovered Rooms 비어 있음 (A 선행 방 생성 → B 접속)** | `NetworkManager.ts`, `DiscoveryManager.ts` | `peer:joined`/`discover_ack` 시 HTTP pull·`room_advertised` push 미실행 (Phase 1에서 수정) |
 
 ---
 
