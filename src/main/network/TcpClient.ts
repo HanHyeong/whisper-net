@@ -43,7 +43,8 @@ export class TcpClient extends EventEmitter {
       })
 
       socket.on('data', (data) => {
-        const buf = this.buffers.get(socketId)!
+        const buf = this.buffers.get(socketId)
+        if (!buf) return
         const combined = Buffer.concat([buf, data])
         const { messages, remainder } = decodeMessages(combined)
         this.buffers.set(socketId, remainder)
@@ -53,6 +54,7 @@ export class TcpClient extends EventEmitter {
       })
 
       socket.on('close', () => {
+        socket.removeAllListeners()
         this.buffers.delete(socketId)
         this.sockets.delete(peerId)
         this.emit('disconnected', peerId)
@@ -60,6 +62,7 @@ export class TcpClient extends EventEmitter {
 
       socket.on('error', () => {
         this.connecting.delete(peerId)
+        this.buffers.delete(socketId)
         this.sockets.delete(peerId)
         this.emit('disconnected', peerId)
         resolve(false)
@@ -85,12 +88,17 @@ export class TcpClient extends EventEmitter {
   }
 
   disconnect(peerId: string) {
-    this.sockets.get(peerId)?.destroy()
+    const socket = this.sockets.get(peerId)
+    if (socket) {
+      socket.removeAllListeners()
+      socket.destroy()
+    }
     this.sockets.delete(peerId)
   }
 
   disconnectAll() {
-    for (const [id, socket] of this.sockets) {
+    for (const socket of this.sockets.values()) {
+      socket.removeAllListeners()
       socket.destroy()
     }
     this.sockets.clear()

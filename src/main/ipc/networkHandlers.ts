@@ -65,9 +65,17 @@ export function registerNetworkHandlers(initialNickname: string) {
     return serializeRoom(room)
   })
 
-  ipcMain.handle('net:join-room', (_, roomId: string, password?: string, name?: string, type?: 'public' | 'private') => {
-    ipcState.network?.joinRoom(roomId, password, name, type)
-  })
+  ipcMain.handle(
+    'net:join-room',
+    async (_, roomId: string, password?: string, name?: string, type?: 'public' | 'private') => {
+      return (
+        (await ipcState.network?.joinRoom(roomId, password, name, type)) ?? {
+          ok: false,
+          error: 'not_ready',
+        }
+      )
+    }
+  )
 
   ipcMain.handle('net:leave-room', (_, roomId: string) => {
     const result = ipcState.network?.leaveRoom(roomId) ?? { ok: false, error: 'not_found' }

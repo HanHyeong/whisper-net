@@ -13,7 +13,7 @@ export default function App() {
   const {
     peers, rooms, localPeerId, localNickname, sharedFolder, transfers,
     setPeers, setLocalPeerId, setLocalNickname, setSharedFolder, setRooms,
-    addRoom, addMessage, setActiveRoom, activeRoomId,
+    addMessage, setActiveRoom, activeRoomId,
     addTransfer, updateTransfer, removeTransfer,
     unreadCounts, incrementUnread, clearUnread,
     updateMessageAttachment,
@@ -39,9 +39,15 @@ export default function App() {
     const unsubJoinRejected = window.whisperAPI.onJoinRejected((info) => {
       setShowJoinModal(false)
       setPendingJoinRoom(null)
-      setAlertMessage(
-        info.reason === 'wrong_password' ? '비밀번호가 틀렸습니다.' : '방 참여가 거부되었습니다.'
-      )
+      const message =
+        info.reason === 'wrong_password'
+          ? '비밀번호가 틀렸습니다.'
+          : info.reason === 'timeout'
+            ? '방 참여 응답 시간이 초과되었습니다. 피어 목록을 새로고침한 뒤 다시 시도하세요.'
+            : info.reason === 'room_not_found'
+              ? '방을 찾을 수 없습니다. 피어 목록을 새로고침한 뒤 다시 시도하세요.'
+              : '방 참여가 거부되었습니다.'
+      setAlertMessage(message)
     })
     const unsubRoomJoined = window.whisperAPI.onRoomJoined((roomId) => {
       setShowJoinModal(false)
@@ -143,9 +149,19 @@ export default function App() {
     })
   }
 
-  const handleRequestJoinRoom = (roomId: string, name: string, type: 'public' | 'private') => {
+  const handleRequestJoinRoom = async (roomId: string, name: string, type: 'public' | 'private') => {
     if (type === 'public') {
-      window.whisperAPI.joinRoom(roomId, undefined, name, type)
+      const result: { ok?: boolean; error?: string } = await window.whisperAPI.joinRoom(
+        roomId,
+        undefined,
+        name,
+        type
+      )
+      if (result?.error === 'no_host') {
+        setAlertMessage('참여 가능한 호스트를 찾을 수 없습니다. 피어 목록을 새로고침해 보세요.')
+      } else if (result?.error === 'connect_failed') {
+        setAlertMessage('호스트에 연결할 수 없습니다. 피어 목록을 새로고침한 뒤 다시 시도하세요.')
+      }
     } else {
       setPendingJoinRoom({ roomId, name, type })
       setShowJoinModal(true)
@@ -213,10 +229,24 @@ export default function App() {
     }
   }
 
-  const handleJoinRoom = (roomId: string, password?: string) => {
+  const handleJoinRoom = async (roomId: string, password?: string) => {
     const name = pendingJoinRoom?.name
     const type = pendingJoinRoom?.type
-    window.whisperAPI.joinRoom(roomId, password, name, type)
+    const result: { ok?: boolean; error?: string } = await window.whisperAPI.joinRoom(
+      roomId,
+      password,
+      name,
+      type
+    )
+    if (result?.error === 'no_host') {
+      setShowJoinModal(false)
+      setPendingJoinRoom(null)
+      setAlertMessage('참여 가능한 호스트를 찾을 수 없습니다. 피어 목록을 새로고침해 보세요.')
+    } else if (result?.error === 'connect_failed') {
+      setShowJoinModal(false)
+      setPendingJoinRoom(null)
+      setAlertMessage('호스트에 연결할 수 없습니다. 피어 목록을 새로고침한 뒤 다시 시도하세요.')
+    }
   }
 
   const handleBrowsePeerFiles = (peer: Peer) => {
@@ -369,7 +399,6 @@ export default function App() {
               setAlertMessage(room.error)
               return
             }
-            addRoom(room)
             setActiveRoom(room.roomId)
             setShowCreate(false)
           }}

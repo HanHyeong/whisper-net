@@ -6,6 +6,7 @@ export class TcpServer extends EventEmitter {
   private server: net.Server | null = null
   private sockets = new Map<string, net.Socket>() // peerId -> socket (incoming)
   private buffers = new Map<string, Buffer>() // socket id -> accumulated buffer
+  private allSockets = new Set<net.Socket>()
 
   constructor(private port: number) {
     super()
@@ -14,10 +15,12 @@ export class TcpServer extends EventEmitter {
   start() {
     this.server = net.createServer((socket) => {
       const socketId = `${socket.remoteAddress}:${socket.remotePort}`
+      this.allSockets.add(socket)
       this.buffers.set(socketId, Buffer.alloc(0))
 
       socket.on('data', (data) => {
-        const buf = this.buffers.get(socketId)!
+        const buf = this.buffers.get(socketId)
+        if (!buf) return
         const combined = Buffer.concat([buf, data])
         const { messages, remainder } = decodeMessages(combined)
         this.buffers.set(socketId, remainder)
@@ -27,6 +30,8 @@ export class TcpServer extends EventEmitter {
       })
 
       socket.on('close', () => {
+        socket.removeAllListeners()
+        this.allSockets.delete(socket)
         this.buffers.delete(socketId)
         for (const [pid, s] of this.sockets) {
           if (s === socket) {
@@ -63,10 +68,14 @@ export class TcpServer extends EventEmitter {
   }
 
   stop() {
-    for (const socket of this.sockets.values()) {
+    for (const socket of this.allSockets) {
+      socket.removeAllListeners()
       socket.destroy()
     }
+    this.allSockets.clear()
     this.sockets.clear()
+    this.buffers.clear()
     this.server?.close()
+    this.server = null
   }
 }

@@ -46,8 +46,19 @@ function normalizeRoom(room: Room): Room {
   }
 }
 
+function dedupeRooms(rooms: Room[]): Room[] {
+  const seen = new Set<string>()
+  const deduped: Room[] = []
+  for (const room of rooms) {
+    if (seen.has(room.roomId)) continue
+    seen.add(room.roomId)
+    deduped.push(room)
+  }
+  return deduped
+}
+
 function normalizeRooms(rooms: Room[]): Room[] {
-  return rooms.map(normalizeRoom)
+  return dedupeRooms(rooms.map(normalizeRoom))
 }
 
 export interface FileTransfer {
@@ -122,7 +133,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         mutedRoomIds: nextMuted,
       }
     }),
-  addRoom: (room) => set((state) => ({ rooms: [...state.rooms, normalizeRoom(room)] })),
+  addRoom: (room) =>
+    set((state) => {
+      const normalized = normalizeRoom(room)
+      if (state.rooms.some((r) => r.roomId === normalized.roomId)) {
+        return state
+      }
+      return { rooms: [...state.rooms, normalized] }
+    }),
   addMessage: (msg) =>
     set((state) => ({
       rooms: state.rooms.map((r) =>

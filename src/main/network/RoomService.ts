@@ -13,6 +13,7 @@ export interface RoomServiceDeps {
   local: LocalPeer
   getPeers: () => PeerInfo[]
   sendDirect: (peerId: string, msg: ProtocolMessage) => void
+  sendDirectReliable: (peerId: string, msg: ProtocolMessage) => Promise<boolean>
   broadcastToRoom: (roomId: string, msg: ProtocolMessage, excludePeerId?: string) => void
   onLocalRoomsChanged: () => void
   onJoinRejected: (info: { roomId: string; reason: string }) => void
@@ -22,6 +23,8 @@ export interface RoomServiceDeps {
 export class RoomService {
   private rooms = new Map<string, Room>()
   private pendingJoins = new Map<string, PendingJoin>()
+  private joinTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+  private readonly JOIN_TIMEOUT_MS = 15000
 
   constructor(private deps: RoomServiceDeps) {}
 
@@ -70,10 +73,14 @@ export class RoomService {
     return room
   }
 
-  joinRoom(roomId: string, password?: string, name?: string, type?: 'public' | 'private') {
+  async joinRoom(
+    roomId: string,
+    password?: string,
+    name?: string,
+    type?: 'public' | 'private'
+  ): Promise<{ ok: boolean; error?: string }> {
     const room = this.rooms.get(roomId)
-    if (room) {
-      room.members.add(this.deps.local.peerId)
+    if (room?.members.has(this.deps.local.peerId)) {
       if (room.type === 'private' && password) {
         if (!room.encryptionKey) {
           room.encryptionKey = deriveKey(password, roomId)
@@ -84,41 +91,78 @@ export class RoomService {
       }
       this.deps.onLocalRoomsChanged()
       this.deps.onRoomJoined?.(roomId)
-      return
+      return { ok: true }
     }
 
-    for (const peer of this.deps.getPeers()) {
-      if (peer.rooms.some((r) => r.roomId === roomId)) {
-        this.pendingJoins.set(roomId, {
-          name: name || 'Unknown',
-          type: type || 'public',
-          password: type === 'private' ? password : undefined,
-        })
-
-        const payload: JoinRoomPayload = { roomId }
-        if (password) {
-          payload.passwordHash = hashPassword(password)
-        }
-        this.deps.sendDirect(peer.peerId, {
-          type: 'join_room',
-          peerId: this.deps.local.peerId,
-          nickname: this.deps.local.nickname,
-          timestamp: Date.now(),
-          payload,
-        })
-        return
-      }
+    if (room) {
+      this.rooms.delete(roomId)
+      this.deps.onLocalRoomsChanged()
     }
+
+    const hostPeers = this.deps
+      .getPeers()
+      .filter((peer) => peer.rooms.some((r) => r.roomId === roomId))
+      .sort((a, b) => {
+        const aRoom = a.rooms.find((r) => r.roomId === roomId)
+        const bRoom = b.rooms.find((r) => r.roomId === roomId)
+        return (bRoom?.memberCount ?? 0) - (aRoom?.memberCount ?? 0)
+      })
+
+    if (hostPeers.length === 0) {
+      return { ok: false, error: 'no_host' }
+    }
+
+    this.pendingJoins.set(roomId, {
+      name: name || 'Unknown',
+      type: type || 'public',
+      password: type === 'private' ? password : undefined,
+    })
+
+    const payload: JoinRoomPayload = { roomId }
+    if (password) {
+      payload.passwordHash = hashPassword(password)
+    }
+
+    const joinMsg: ProtocolMessage = {
+      type: 'join_room',
+      peerId: this.deps.local.peerId,
+      nickname: this.deps.local.nickname,
+      timestamp: Date.now(),
+      payload,
+    }
+
+    let sentCount = 0
+    for (const peer of hostPeers) {
+      const sent = await this.deps.sendDirectReliable(peer.peerId, joinMsg)
+      if (sent) sentCount++
+    }
+
+    if (sentCount === 0) {
+      this.pendingJoins.delete(roomId)
+      return { ok: false, error: 'connect_failed' }
+    }
+
+    this.startJoinTimeout(roomId)
+    return { ok: true }
   }
 
   handleJoinRoom(fromPeerId: string, fromNickname: string, payload: JoinRoomPayload): boolean {
     const room = this.rooms.get(payload.roomId)
-    if (!room) return false
+    if (!room) {
+      void this.deps.sendDirectReliable(fromPeerId, {
+        type: 'leave_room',
+        peerId: this.deps.local.peerId,
+        nickname: this.deps.local.nickname,
+        timestamp: Date.now(),
+        payload: { roomId: payload.roomId, reason: 'room_not_found' },
+      })
+      return false
+    }
 
     if (room.type === 'private') {
       const hash = payload.passwordHash ?? ''
       if (!room.passwordHash || hash !== room.passwordHash) {
-        this.deps.sendDirect(fromPeerId, {
+        void this.deps.sendDirectReliable(fromPeerId, {
           type: 'leave_room',
           peerId: this.deps.local.peerId,
           nickname: this.deps.local.nickname,
@@ -134,7 +178,8 @@ export class RoomService {
       this.appendSystemMessage(payload.roomId, `${fromNickname}님이 참여하였습니다.`)
       this.deps.onLocalRoomsChanged()
     }
-    this.deps.broadcastToRoom(payload.roomId, {
+
+    const membersMsg: ProtocolMessage = {
       type: 'room_members',
       peerId: this.deps.local.peerId,
       nickname: this.deps.local.nickname,
@@ -145,14 +190,18 @@ export class RoomService {
         name: room.name,
         type: room.type,
       } as RoomMembersPayload,
-    })
+    }
+
+    void this.deps.sendDirectReliable(fromPeerId, membersMsg)
+    this.deps.broadcastToRoom(payload.roomId, membersMsg, fromPeerId)
     return true
   }
 
   handleLeaveRoom(payload: LeaveRoomPayload, fromPeerId?: string, fromNickname?: string) {
-    if (payload.reason === 'wrong_password') {
+    if (payload.reason === 'wrong_password' || payload.reason === 'room_not_found') {
+      this.clearJoinTimeout(payload.roomId)
       this.pendingJoins.delete(payload.roomId)
-      if (this.rooms.has(payload.roomId)) {
+      if (payload.reason === 'wrong_password' && this.rooms.has(payload.roomId)) {
         this.rooms.delete(payload.roomId)
         this.deps.onLocalRoomsChanged()
       }
@@ -176,6 +225,7 @@ export class RoomService {
   }
 
   handleRoomClosed(payload: RoomClosedPayload) {
+    this.clearJoinTimeout(payload.roomId)
     this.pendingJoins.delete(payload.roomId)
     if (!this.rooms.has(payload.roomId)) return
     this.rooms.delete(payload.roomId)
@@ -184,6 +234,7 @@ export class RoomService {
 
   leaveRoom(roomId: string): { ok: boolean; error?: string } {
     if (this.pendingJoins.has(roomId)) {
+      this.clearJoinTimeout(roomId)
       this.pendingJoins.delete(roomId)
       return { ok: true }
     }
@@ -261,6 +312,7 @@ export class RoomService {
       this.rooms.set(payload.roomId, room)
       this.appendSystemMessage(payload.roomId, `${this.deps.local.nickname}님이 참여하였습니다.`)
       joined = true
+      this.clearJoinTimeout(payload.roomId)
     } else if (room) {
       const previousMembers = new Set(room.members)
       for (const memberId of payload.members) {
@@ -313,5 +365,25 @@ export class RoomService {
     }
     const peer = this.deps.getPeers().find((p) => p.peerId === peerId)
     return peer?.nickname || '알 수 없음'
+  }
+
+  private startJoinTimeout(roomId: string) {
+    this.clearJoinTimeout(roomId)
+    this.joinTimeouts.set(
+      roomId,
+      setTimeout(() => {
+        if (!this.pendingJoins.has(roomId)) return
+        this.pendingJoins.delete(roomId)
+        this.deps.onJoinRejected({ roomId, reason: 'timeout' })
+      }, this.JOIN_TIMEOUT_MS)
+    )
+  }
+
+  private clearJoinTimeout(roomId: string) {
+    const timer = this.joinTimeouts.get(roomId)
+    if (timer) {
+      clearTimeout(timer)
+      this.joinTimeouts.delete(roomId)
+    }
   }
 }

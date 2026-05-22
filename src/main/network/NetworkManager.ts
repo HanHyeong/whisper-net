@@ -36,6 +36,7 @@ export class NetworkManager extends EventEmitter {
       local: this.local,
       getPeers: () => this.peerRegistry.list(),
       sendDirect: (id, msg) => this.connectionPool.send(id, msg),
+      sendDirectReliable: (id, msg) => this.connectionPool.sendReliable(id, msg),
       broadcastToRoom: (roomId, msg, exclude) =>
         this.messageService.broadcastToRoom(roomId, msg, exclude),
       onLocalRoomsChanged: () => {
@@ -102,8 +103,19 @@ export class NetworkManager extends EventEmitter {
     return this.roomService.createRoom(name, type, password)
   }
 
-  joinRoom(roomId: string, password?: string, name?: string, type?: 'public' | 'private') {
-    this.roomService.joinRoom(roomId, password, name, type)
+  async joinRoom(
+    roomId: string,
+    password?: string,
+    name?: string,
+    type?: 'public' | 'private'
+  ): Promise<{ ok: boolean; error?: string }> {
+    const hostPeerIds = this.peerRegistry
+      .list()
+      .filter((peer) => peer.rooms.some((room) => room.roomId === roomId))
+      .map((peer) => peer.peerId)
+
+    await Promise.all(hostPeerIds.map((peerId) => this.peerSync.refreshPeer(peerId)))
+    return this.roomService.joinRoom(roomId, password, name, type)
   }
 
   leaveRoom(roomId: string): { ok: boolean; error?: string } {

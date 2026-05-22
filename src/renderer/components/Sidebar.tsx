@@ -28,9 +28,18 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
   }, [])
 
   // Derive discovered rooms from peers (both public and private)
-  const discoveredRooms = peers
-    .flatMap((p) => (p.rooms || []))
-    .filter((r, i, arr) => arr.findIndex((x) => x.roomId === r.roomId) === i)
+  const discoveredRooms = (() => {
+    const seen = new Set<string>()
+    const deduped: Array<{ roomId: string; name: string; type: 'public' | 'private' }> = []
+    for (const peer of peers) {
+      for (const room of peer.rooms || []) {
+        if (seen.has(room.roomId)) continue
+        seen.add(room.roomId)
+        deduped.push(room)
+      }
+    }
+    return deduped
+  })()
 
   const myRoomIds = new Set(rooms.map((r) => r.roomId))
   const newDiscovered = discoveredRooms.filter((r: any) => !myRoomIds.has(r.roomId))

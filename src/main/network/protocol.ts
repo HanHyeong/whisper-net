@@ -56,7 +56,7 @@ export interface JoinRoomPayload {
 
 export interface LeaveRoomPayload {
   roomId: string
-  reason?: 'wrong_password' | 'voluntary'
+  reason?: 'wrong_password' | 'voluntary' | 'room_not_found'
   leaverPeerId?: string
   members?: string[]
 }

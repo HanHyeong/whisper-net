@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [1.8.6] — 2026-05-22
+
+### Fixed
+
+- **나가기 후 재참여 실패**: 방을 광고하는 모든 피어에 `join_room` 전송, 호스트가 joiner에게 `room_members` 직접 전달
+- **조인 신뢰성**: TCP 연결 확립 후 전송(`sendReliable`), 참여 전 피어 목록 refresh, 15초 타임아웃·오류 메시지
+- **React duplicate key 경고**: 방 생성 시 `rooms` 배열 중복 제거, Discovered Rooms dedupe 강화
+- **cmd+q 종료 크래시**: 소켓 종료 후 `data` 이벤트 race condition 방어, TCP 정리 로직 개선
+
+---
+
 ## [1.8.5] — 2026-05-22
 
 ### Fixed

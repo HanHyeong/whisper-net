@@ -41,22 +41,32 @@ export class ConnectionPool extends EventEmitter {
   send(peerId: string, msg: ProtocolMessage) {
     const ok = this.server.send(peerId, msg) || this.client.send(peerId, msg)
     if (!ok) {
-      const peer = this.getPeer(peerId)
-      if (peer) {
-        this.client.connect(peerId, peer.ip, peer.tcpPort).then((connected) => {
-          if (connected) {
-            const sent = this.server.send(peerId, msg) || this.client.send(peerId, msg)
-            if (!sent) {
-              console.warn(`[whisper-net] send failed: ${msg.type} -> ${peerId}`)
-            }
-          } else {
-            console.warn(`[whisper-net] connect failed: ${msg.type} -> ${peerId}`)
-          }
-        })
-      } else {
-        console.warn(`[whisper-net] send: unknown peer ${peerId} (${msg.type})`)
-      }
+      void this.sendReliable(peerId, msg)
     }
+  }
+
+  async sendReliable(peerId: string, msg: ProtocolMessage): Promise<boolean> {
+    if (this.server.send(peerId, msg) || this.client.send(peerId, msg)) {
+      return true
+    }
+
+    const peer = this.getPeer(peerId)
+    if (!peer) {
+      console.warn(`[whisper-net] send: unknown peer ${peerId} (${msg.type})`)
+      return false
+    }
+
+    const connected = await this.client.connect(peerId, peer.ip, peer.tcpPort)
+    if (!connected) {
+      console.warn(`[whisper-net] connect failed: ${msg.type} -> ${peerId}`)
+      return false
+    }
+
+    const sent = this.server.send(peerId, msg) || this.client.send(peerId, msg)
+    if (!sent) {
+      console.warn(`[whisper-net] send failed: ${msg.type} -> ${peerId}`)
+    }
+    return sent
   }
 
   sendViaClient(peerId: string, msg: ProtocolMessage): boolean {
