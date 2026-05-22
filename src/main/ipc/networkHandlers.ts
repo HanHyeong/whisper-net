@@ -69,6 +69,14 @@ export function registerNetworkHandlers(initialNickname: string) {
     ipcState.network?.joinRoom(roomId, password, name, type)
   })
 
+  ipcMain.handle('net:leave-room', (_, roomId: string) => {
+    const result = ipcState.network?.leaveRoom(roomId) ?? { ok: false, error: 'not_found' }
+    if (result.ok) {
+      ipcState.mutedRoomIds.delete(roomId)
+    }
+    return result
+  })
+
   ipcMain.handle('net:send-text', (_, roomId: string, content: string) => {
     ipcState.network?.sendText(roomId, content)
   })

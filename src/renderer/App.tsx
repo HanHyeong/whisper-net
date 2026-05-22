@@ -7,6 +7,7 @@ import NicknameModal from './components/NicknameModal'
 import ManualConnectModal from './components/ManualConnectModal'
 import SharedFileBrowser from './components/SharedFileBrowser'
 import JoinRoomModal from './components/JoinRoomModal'
+import LeaveRoomModal from './components/LeaveRoomModal'
 
 export default function App() {
   const {
@@ -26,6 +27,7 @@ export default function App() {
   const [pendingJoinRoom, setPendingJoinRoom] = useState<{ roomId: string; name: string; type: 'public' | 'private' } | null>(null)
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
   const [showNotificationPreview, setShowNotificationPreview] = useState(true)
+  const [leaveTargetRoom, setLeaveTargetRoom] = useState<{ roomId: string; name: string; isLastMember: boolean } | null>(null)
 
   // Keep latest activeRoomId in ref to avoid stale closure in event handlers
   const activeRoomIdRef = useRef(activeRoomId)
@@ -198,6 +200,24 @@ export default function App() {
     setBrowsePeer(peer)
   }
 
+  const handleRequestLeaveRoom = (roomId: string) => {
+    const room = rooms.find((r) => r.roomId === roomId)
+    if (!room) return
+    const members = Array.isArray(room.members) ? room.members : []
+    const isLastMember = members.length <= 1 && members.includes(localPeerId)
+    setLeaveTargetRoom({ roomId, name: room.name, isLastMember })
+  }
+
+  const handleConfirmLeaveRoom = async () => {
+    if (!leaveTargetRoom) return
+    const { roomId } = leaveTargetRoom
+    const result: { ok?: boolean; error?: string } = await window.whisperAPI.leaveRoom(roomId)
+    setLeaveTargetRoom(null)
+    if (!result?.ok) {
+      setAlertMessage('대화방을 나갈 수 없습니다.')
+    }
+  }
+
   // Update dock/taskbar badge when unread counts change
   useEffect(() => {
     const totalUnread = Object.values(unreadCounts).reduce((sum, c) => sum + c, 0)
@@ -255,6 +275,7 @@ export default function App() {
             room={activeRoom}
             onSendFileAttachment={handleSendFileAttachment}
             onDownloadAttachment={handleDownloadAttachment}
+            onLeaveRoom={handleRequestLeaveRoom}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
@@ -352,6 +373,14 @@ export default function App() {
           roomType={pendingJoinRoom.type}
           onClose={() => { setShowJoinModal(false); setPendingJoinRoom(null) }}
           onJoin={handleJoinRoom}
+        />
+      )}
+      {leaveTargetRoom && (
+        <LeaveRoomModal
+          roomName={leaveTargetRoom.name}
+          isLastMember={leaveTargetRoom.isLastMember}
+          onConfirm={handleConfirmLeaveRoom}
+          onCancel={() => setLeaveTargetRoom(null)}
         />
       )}
       {alertMessage && (

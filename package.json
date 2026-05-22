@@ -1,6 +1,6 @@
 {
   "name": "whisper-net",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Serverless P2P LAN messenger",
   "main": "./out/main/index.js",
   "author": "whisper-net",

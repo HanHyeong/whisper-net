@@ -6,6 +6,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [1.8.0] — 2026-05-22
+
+### Added
+
+- **대화방 나가기**: ChatView 헤더 「나가기」 버튼 + 확인 모달
+- **상황별 동작**: 혼자 남으면 방 종료(`room_closed`), 다른 참여자 있으면 unjoin → Discovered Rooms 재표시
+- **프로토콜**: `leave_room`(voluntary) 확장, `room_closed` 신규
+- **E2E**: `tests/e2e/room-leave.spec.ts` (unjoin / close / private rejoin)
+
+### Fixed
+
+- **비밀방 재참여**: 참여자 로컬 방에 `passwordHash` 저장 — 생성자 나간 뒤에도 join 검증 가능
+
+---
+
 ## [1.7.1] — 2026-05-22
 
 ### Added

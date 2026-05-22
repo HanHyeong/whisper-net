@@ -10,6 +10,7 @@ const api = {
     ipcRenderer.invoke('net:create-room', name, type, password),
   joinRoom: (roomId: string, password?: string, name?: string, type?: 'public' | 'private') =>
     ipcRenderer.invoke('net:join-room', roomId, password, name, type),
+  leaveRoom: (roomId: string) => ipcRenderer.invoke('net:leave-room', roomId),
   sendText: (roomId: string, content: string) =>
     ipcRenderer.invoke('net:send-text', roomId, content),
   sendFileAttachment: (roomId: string) =>

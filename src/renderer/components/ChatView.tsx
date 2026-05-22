@@ -5,6 +5,7 @@ interface Props {
   room: Room
   onSendFileAttachment: () => void
   onDownloadAttachment: (msg: ChatMessage) => void
+  onLeaveRoom: (roomId: string) => void
 }
 
 function isImageFile(fileName: string): boolean {
@@ -17,7 +18,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export default function ChatView({ room, onSendFileAttachment, onDownloadAttachment }: Props) {
+export default function ChatView({ room, onSendFileAttachment, onDownloadAttachment, onLeaveRoom }: Props) {
   const { localPeerId, isRoomMuted, toggleRoomMute } = useAppStore()
   const muted = isRoomMuted(room.roomId)
   const [text, setText] = useState('')
@@ -76,6 +77,13 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
             title="대화에 파일 첨부 (10MB 이하)"
           >
             📎 파일 첨부
+          </button>
+          <button
+            onClick={() => onLeaveRoom(room.roomId)}
+            className="text-xs bg-gray-700 hover:bg-red-900/60 px-3 py-1.5 rounded border border-gray-600 text-red-300"
+            title="대화방 나가기"
+          >
+            나가기
           </button>
         </div>
       </header>

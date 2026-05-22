@@ -12,6 +12,8 @@ import {
   FileOfferPayload,
   FileChunkPayload,
   JoinRoomPayload,
+  LeaveRoomPayload,
+  RoomClosedPayload,
   RoomMembersPayload,
 } from './protocol'
 import { ChatMessage, LocalPeer } from './types'
@@ -52,7 +54,10 @@ export class MessageService {
         }
         break
       case 'leave_room':
-        this.deps.roomService.handleLeaveRoom(msg.payload)
+        this.deps.roomService.handleLeaveRoom(msg.payload as LeaveRoomPayload, msg.peerId)
+        break
+      case 'room_closed':
+        this.deps.roomService.handleRoomClosed(msg.payload as RoomClosedPayload)
         break
       case 'room_advertised':
         if (msg.payload?.rooms) {

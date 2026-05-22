@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { deriveKey, deriveRoomKey, hashPassword } from './crypto'
-import { JoinRoomPayload, PeerInfo, ProtocolMessage, RoomInfo, RoomMembersPayload } from './protocol'
+import { JoinRoomPayload, LeaveRoomPayload, PeerInfo, ProtocolMessage, RoomClosedPayload, RoomInfo, RoomMembersPayload } from './protocol'
 import { LocalPeer, Room } from './types'
 
 interface PendingJoin {
@@ -74,8 +74,13 @@ export class RoomService {
     const room = this.rooms.get(roomId)
     if (room) {
       room.members.add(this.deps.local.peerId)
-      if (room.type === 'private' && password && !room.encryptionKey) {
-        room.encryptionKey = deriveKey(password, roomId)
+      if (room.type === 'private' && password) {
+        if (!room.encryptionKey) {
+          room.encryptionKey = deriveKey(password, roomId)
+        }
+        if (!room.passwordHash) {
+          room.passwordHash = hashPassword(password)
+        }
       }
       this.deps.onLocalRoomsChanged()
       this.deps.onRoomJoined?.(roomId)
@@ -140,15 +145,91 @@ export class RoomService {
     return true
   }
 
-  handleLeaveRoom(payload: { roomId: string; reason?: string }) {
-    if (payload.reason !== 'wrong_password') return
-
-    this.pendingJoins.delete(payload.roomId)
-    if (this.rooms.has(payload.roomId)) {
-      this.rooms.delete(payload.roomId)
-      this.deps.onLocalRoomsChanged()
+  handleLeaveRoom(payload: LeaveRoomPayload, fromPeerId?: string) {
+    if (payload.reason === 'wrong_password') {
+      this.pendingJoins.delete(payload.roomId)
+      if (this.rooms.has(payload.roomId)) {
+        this.rooms.delete(payload.roomId)
+        this.deps.onLocalRoomsChanged()
+      }
+      this.deps.onJoinRejected({ roomId: payload.roomId, reason: payload.reason })
+      return
     }
-    this.deps.onJoinRejected({ roomId: payload.roomId, reason: payload.reason })
+
+    const room = this.rooms.get(payload.roomId)
+    if (!room) return
+
+    const leaverId = payload.leaverPeerId ?? fromPeerId
+    if (leaverId) {
+      room.members.delete(leaverId)
+    }
+    if (payload.members) {
+      room.members = new Set(payload.members)
+    }
+    this.deps.onLocalRoomsChanged()
+  }
+
+  handleRoomClosed(payload: RoomClosedPayload) {
+    this.pendingJoins.delete(payload.roomId)
+    if (!this.rooms.has(payload.roomId)) return
+    this.rooms.delete(payload.roomId)
+    this.deps.onLocalRoomsChanged()
+  }
+
+  leaveRoom(roomId: string): { ok: boolean; error?: string } {
+    if (this.pendingJoins.has(roomId)) {
+      this.pendingJoins.delete(roomId)
+      return { ok: true }
+    }
+
+    const room = this.rooms.get(roomId)
+    if (!room) {
+      return { ok: false, error: 'not_found' }
+    }
+
+    const isLastMember =
+      room.members.size === 1 && room.members.has(this.deps.local.peerId)
+
+    if (isLastMember) {
+      this.broadcastRoomClosed(roomId)
+    } else {
+      const remainingMembers = Array.from(room.members).filter(
+        (id) => id !== this.deps.local.peerId
+      )
+      this.deps.broadcastToRoom(roomId, {
+        type: 'leave_room',
+        peerId: this.deps.local.peerId,
+        nickname: this.deps.local.nickname,
+        timestamp: Date.now(),
+        payload: {
+          roomId,
+          reason: 'voluntary',
+          leaverPeerId: this.deps.local.peerId,
+          members: remainingMembers,
+        } satisfies LeaveRoomPayload,
+      })
+    }
+
+    this.rooms.delete(roomId)
+    this.deps.onLocalRoomsChanged()
+    return { ok: true }
+  }
+
+  private broadcastRoomClosed(roomId: string) {
+    const msg: ProtocolMessage = {
+      type: 'room_closed',
+      peerId: this.deps.local.peerId,
+      nickname: this.deps.local.nickname,
+      timestamp: Date.now(),
+      payload: {
+        roomId,
+        closedBy: this.deps.local.peerId,
+      } satisfies RoomClosedPayload,
+    }
+    for (const peer of this.deps.getPeers()) {
+      if (peer.peerId === this.deps.local.peerId) continue
+      this.deps.sendDirect(peer.peerId, msg)
+    }
   }
 
   handleRoomMembers(payload: RoomMembersPayload) {
@@ -165,6 +246,7 @@ export class RoomService {
         messages: [],
       }
       if (room.type === 'private' && pending.password) {
+        room.passwordHash = hashPassword(pending.password)
         room.encryptionKey = deriveKey(pending.password, payload.roomId)
       } else {
         room.encryptionKey = deriveRoomKey(payload.roomId)

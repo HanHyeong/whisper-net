@@ -101,7 +101,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLocalNickname: (name) => set({ localNickname: name }),
   setSharedFolder: (path) => set({ sharedFolder: path }),
   setPeers: (peers) => set({ peers }),
-  setRooms: (rooms) => set({ rooms: normalizeRooms(rooms) }),
+  setRooms: (rooms) =>
+    set((state) => {
+      const normalized = normalizeRooms(rooms)
+      const roomIds = new Set(normalized.map((r) => r.roomId))
+      const activeStillExists = state.activeRoomId ? roomIds.has(state.activeRoomId) : false
+      const nextUnread = { ...state.unreadCounts }
+      for (const id of Object.keys(nextUnread)) {
+        if (!roomIds.has(id)) delete nextUnread[id]
+      }
+      const nextMuted = new Set(state.mutedRoomIds)
+      for (const id of nextMuted) {
+        if (!roomIds.has(id)) nextMuted.delete(id)
+      }
+      return {
+        rooms: normalized,
+        activeRoomId: activeStillExists ? state.activeRoomId : null,
+        unreadCounts: nextUnread,
+        mutedRoomIds: nextMuted,
+      }
+    }),
   addRoom: (room) => set((state) => ({ rooms: [...state.rooms, normalizeRoom(room)] })),
   addMessage: (msg) =>
     set((state) => ({

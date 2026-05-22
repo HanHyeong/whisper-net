@@ -106,6 +106,10 @@ export class NetworkManager extends EventEmitter {
     this.roomService.joinRoom(roomId, password, name, type)
   }
 
+  leaveRoom(roomId: string): { ok: boolean; error?: string } {
+    return this.roomService.leaveRoom(roomId)
+  }
+
   sendFileAttachment(
     roomId: string,
     fileName: string,

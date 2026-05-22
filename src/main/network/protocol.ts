@@ -22,6 +22,7 @@ export type MessageType =
   | 'discover_ack'
   | 'join_room'
   | 'leave_room'
+  | 'room_closed'
   | 'room_members'
   | 'text_message'
   | 'file_attachment'
@@ -51,6 +52,18 @@ export interface TextMessagePayload {
 export interface JoinRoomPayload {
   roomId: string
   passwordHash?: string
+}
+
+export interface LeaveRoomPayload {
+  roomId: string
+  reason?: 'wrong_password' | 'voluntary'
+  leaverPeerId?: string
+  members?: string[]
+}
+
+export interface RoomClosedPayload {
+  roomId: string
+  closedBy: string
 }
 
 export interface RoomMembersPayload {
