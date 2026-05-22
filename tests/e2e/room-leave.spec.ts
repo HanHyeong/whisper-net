@@ -28,6 +28,7 @@ test('다른 참여자 있을 때 나가기 → Discovered Rooms에 재표시', 
     await waitForDiscoveredRoom(b.page, roomName)
     await joinDiscoveredPublicRoom(b.page, roomName)
     await expect(b.page.getByRole('heading', { name: roomName })).toBeVisible({ timeout: 15000 })
+    await expect(b.page.getByText(/님이 참여하였습니다\./)).toBeVisible({ timeout: 10000 })
 
     await a.page.getByRole('button', { name: '나가기' }).click()
     await a.page.getByRole('button', { name: '나가기' }).last().click()
@@ -41,6 +42,7 @@ test('다른 참여자 있을 때 나가기 → Discovered Rooms에 재표시', 
     ).toBeVisible({ timeout: 20000 })
 
     await expect(b.page.locator('aside').getByText(roomName, { exact: true }).first()).toBeVisible({ timeout: 10000 })
+    await expect(b.page.getByText(/LeaveA님이 나가셨습니다\./)).toBeVisible({ timeout: 10000 })
 
     await joinDiscoveredPublicRoom(a.page, roomName)
     await expect(a.page.getByRole('heading', { name: roomName })).toBeVisible({ timeout: 15000 })

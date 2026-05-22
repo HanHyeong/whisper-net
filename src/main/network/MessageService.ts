@@ -54,7 +54,7 @@ export class MessageService {
         }
         break
       case 'leave_room':
-        this.deps.roomService.handleLeaveRoom(msg.payload as LeaveRoomPayload, msg.peerId)
+        this.deps.roomService.handleLeaveRoom(msg.payload as LeaveRoomPayload, msg.peerId, msg.nickname)
         break
       case 'room_closed':
         this.deps.roomService.handleRoomClosed(msg.payload as RoomClosedPayload)

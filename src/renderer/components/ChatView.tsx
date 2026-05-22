@@ -89,7 +89,18 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {room.messages.map((msg: ChatMessage) => (
+        {room.messages.map((msg: ChatMessage) => {
+          if (msg.kind === 'system') {
+            return (
+              <div key={msg.id} className="flex justify-center py-1">
+                <span className="text-xs text-gray-400 bg-gray-800/90 border border-gray-700/80 px-3 py-1 rounded-full">
+                  {msg.content}
+                </span>
+              </div>
+            )
+          }
+
+          return (
           <div key={msg.id} className={`flex ${msg.senderId === localPeerId ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-md px-3 py-2 rounded-lg text-sm ${msg.senderId === localPeerId ? 'bg-emerald-700 text-white' : 'bg-gray-700 text-gray-100'}`}>
               {msg.senderId !== localPeerId && <div className="text-xs text-emerald-400 mb-1">{msg.senderName}</div>}
@@ -144,7 +155,8 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
               <div className="text-[10px] text-right mt-1 opacity-60">{formatTime(msg.timestamp)}</div>
             </div>
           </div>
-        ))}
+          )
+        })}
         {room.messages.length === 0 && (
           <div className="text-center text-gray-600 text-sm mt-10">
             아직 메시지가 없습니다.<br />

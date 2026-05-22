@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { deriveKey, deriveRoomKey, hashPassword } from './crypto'
 import { JoinRoomPayload, LeaveRoomPayload, PeerInfo, ProtocolMessage, RoomClosedPayload, RoomInfo, RoomMembersPayload } from './protocol'
-import { LocalPeer, Room } from './types'
+import { ChatMessage, LocalPeer, Room } from './types'
 
 interface PendingJoin {
   name: string
@@ -111,7 +111,7 @@ export class RoomService {
     }
   }
 
-  handleJoinRoom(fromPeerId: string, _fromNickname: string, payload: JoinRoomPayload): boolean {
+  handleJoinRoom(fromPeerId: string, fromNickname: string, payload: JoinRoomPayload): boolean {
     const room = this.rooms.get(payload.roomId)
     if (!room) return false
 
@@ -129,7 +129,11 @@ export class RoomService {
       }
     }
 
-    room.members.add(fromPeerId)
+    if (!room.members.has(fromPeerId)) {
+      room.members.add(fromPeerId)
+      this.appendSystemMessage(payload.roomId, `${fromNickname}님이 참여하였습니다.`)
+      this.deps.onLocalRoomsChanged()
+    }
     this.deps.broadcastToRoom(payload.roomId, {
       type: 'room_members',
       peerId: this.deps.local.peerId,
@@ -145,7 +149,7 @@ export class RoomService {
     return true
   }
 
-  handleLeaveRoom(payload: LeaveRoomPayload, fromPeerId?: string) {
+  handleLeaveRoom(payload: LeaveRoomPayload, fromPeerId?: string, fromNickname?: string) {
     if (payload.reason === 'wrong_password') {
       this.pendingJoins.delete(payload.roomId)
       if (this.rooms.has(payload.roomId)) {
@@ -160,7 +164,9 @@ export class RoomService {
     if (!room) return
 
     const leaverId = payload.leaverPeerId ?? fromPeerId
-    if (leaverId) {
+    if (leaverId && room.members.has(leaverId)) {
+      const nickname = fromNickname || this.resolveNickname(leaverId)
+      this.appendSystemMessage(payload.roomId, `${nickname}님이 나가셨습니다.`)
       room.members.delete(leaverId)
     }
     if (payload.members) {
@@ -253,8 +259,15 @@ export class RoomService {
       }
       this.pendingJoins.delete(payload.roomId)
       this.rooms.set(payload.roomId, room)
+      this.appendSystemMessage(payload.roomId, `${this.deps.local.nickname}님이 참여하였습니다.`)
       joined = true
     } else if (room) {
+      const previousMembers = new Set(room.members)
+      for (const memberId of payload.members) {
+        if (!previousMembers.has(memberId)) {
+          this.appendSystemMessage(payload.roomId, `${this.resolveNickname(memberId)}님이 참여하였습니다.`)
+        }
+      }
       payload.members.forEach((m) => room!.members.add(m))
       if (payload.name) room.name = payload.name
       if (payload.type) room.type = payload.type
@@ -276,5 +289,29 @@ export class RoomService {
     for (const room of this.rooms.values()) {
       room.members.delete(peerId)
     }
+  }
+
+  private appendSystemMessage(roomId: string, content: string) {
+    const room = this.rooms.get(roomId)
+    if (!room) return
+
+    const chat: ChatMessage = {
+      id: randomUUID(),
+      roomId,
+      senderId: 'system',
+      senderName: '',
+      content,
+      timestamp: Date.now(),
+      kind: 'system',
+    }
+    room.messages.push(chat)
+  }
+
+  private resolveNickname(peerId: string): string {
+    if (peerId === this.deps.local.peerId) {
+      return this.deps.local.nickname
+    }
+    const peer = this.deps.getPeers().find((p) => p.peerId === peerId)
+    return peer?.nickname || '알 수 없음'
   }
 }

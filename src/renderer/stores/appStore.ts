@@ -26,6 +26,7 @@ export interface ChatMessage {
   senderName: string
   content: string
   timestamp: number
+  kind?: 'text' | 'system'
   attachment?: AttachmentInfo
 }
 
