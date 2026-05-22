@@ -6,6 +6,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [1.8.5] — 2026-05-22
+
+### Fixed
+
+- **첨부 이미지 다운로드 404**: `messageId` 기준 `/whisper/room-attachment` 엔드포인트 추가, 파일명 불일치 시 폴더 내 단일 파일 fallback
+- **다운로드 URL**: 경로 세그먼트별 인코딩, 다운로드 전 발신자 peer 정보 refresh
+
+---
+
+## [1.8.4] — 2026-05-22
+
+### Fixed
+
+- **클립보드 이미지 파일명**: `image.png` 등 기본 이름 대신 `clipboard-{timestamp}-{id}.png` 형식으로 고유 저장
+- **첨부 파일 messageId**: 저장 경로와 네트워크 payload의 messageId 불일치 수정
+
+---
+
+## [1.8.3] — 2026-05-22
+
+### Added
+
+- **클립보드 이미지 붙여넣기**: 대화 입력창에 이미지 붙여넣기 시 파일 첨부와 동일하게 전송
+
+---
+
 ## [1.8.2] — 2026-05-22
 
 ### Added

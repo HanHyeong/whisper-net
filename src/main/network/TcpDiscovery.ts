@@ -61,6 +61,8 @@ export class TcpDiscovery extends EventEmitter {
           this.handleShareList(req, res)
         } else if (pathname.startsWith('/whisper/share/') && req.method === 'GET') {
           this.handleShareDownload(req, res)
+        } else if (pathname === '/whisper/room-attachment' && req.method === 'GET') {
+          this.handleRoomAttachmentDownload(req, res)
         } else {
           res.writeHead(404)
           res.end()
@@ -176,23 +178,99 @@ export class TcpDiscovery extends EventEmitter {
       return
     }
     const url = new URL(req.url!, `http://${req.headers.host}`)
-    const fileName = decodeURIComponent(url.pathname.replace('/whisper/share/', ''))
-    const filePath = path.join(this.sharedPath, fileName)
-    if (!filePath.startsWith(this.sharedPath)) {
-      res.writeHead(403)
-      res.end()
-      return
-    }
-    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    const relativePath = decodeURIComponent(url.pathname.replace('/whisper/share/', ''))
+    const filePath = this.resolveAttachmentFile(relativePath)
+    if (!filePath) {
       res.writeHead(404)
       res.end()
       return
     }
+    this.streamAttachmentFile(res, filePath, path.basename(filePath))
+  }
+
+  private handleRoomAttachmentDownload(req: http.IncomingMessage, res: http.ServerResponse) {
+    if (!this.sharedPath) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
+    const url = new URL(req.url!, `http://${req.headers.host}`)
+    const roomId = url.searchParams.get('roomId') || ''
+    const messageId = url.searchParams.get('messageId') || ''
+    const fileName = url.searchParams.get('fileName') || ''
+    if (!roomId || !messageId) {
+      res.writeHead(400)
+      res.end()
+      return
+    }
+    const dirPath = path.join(this.sharedPath, '_roomsFiles', roomId, messageId)
+    const filePath = this.resolveAttachmentFileInDir(dirPath, fileName ? path.basename(fileName) : undefined)
+    if (!filePath) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
+    this.streamAttachmentFile(res, filePath, path.basename(filePath))
+  }
+
+  private resolveAttachmentFile(relativePath: string): string | null {
+    if (!this.sharedPath) return null
+    const normalized = relativePath.replace(/\\/g, '/').replace(/\/+$/, '')
+    if (!normalized) return null
+
+    const resolvedShared = path.resolve(this.sharedPath)
+    const directPath = path.resolve(path.join(this.sharedPath, normalized))
+    if (this.isPathInside(directPath, resolvedShared) && fs.existsSync(directPath) && fs.statSync(directPath).isFile()) {
+      return directPath
+    }
+
+    const parts = normalized.split('/')
+    if (parts.length >= 3 && parts[0] === '_roomsFiles') {
+      const dirPath = path.resolve(path.join(this.sharedPath, ...parts.slice(0, -1)))
+      return this.resolveAttachmentFileInDir(dirPath, parts[parts.length - 1])
+    }
+    if (parts.length === 3 && parts[0] === '_roomsFiles') {
+      const dirPath = path.resolve(path.join(this.sharedPath, ...parts))
+      return this.resolveAttachmentFileInDir(dirPath)
+    }
+    return null
+  }
+
+  private resolveAttachmentFileInDir(dirPath: string, preferredName?: string): string | null {
+    if (!this.sharedPath) return null
+    const resolvedShared = path.resolve(this.sharedPath)
+    if (!this.isPathInside(dirPath, resolvedShared) || !fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+      return null
+    }
+    if (preferredName) {
+      const preferredPath = path.join(dirPath, preferredName)
+      if (fs.existsSync(preferredPath) && fs.statSync(preferredPath).isFile()) {
+        return preferredPath
+      }
+    }
+    const files = fs
+      .readdirSync(dirPath)
+      .filter((name) => fs.statSync(path.join(dirPath, name)).isFile())
+    if (files.length === 1) {
+      return path.join(dirPath, files[0])
+    }
+    if (preferredName && files.includes(preferredName)) {
+      return path.join(dirPath, preferredName)
+    }
+    return null
+  }
+
+  private isPathInside(targetPath: string, rootPath: string): boolean {
+    const relative = path.relative(rootPath, targetPath)
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
+  }
+
+  private streamAttachmentFile(res: http.ServerResponse, filePath: string, downloadName: string) {
     const stat = fs.statSync(filePath)
     res.writeHead(200, {
       'Content-Type': 'application/octet-stream',
       'Content-Length': stat.size,
-      'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(downloadName)}"`,
     })
     fs.createReadStream(filePath).pipe(res)
   }

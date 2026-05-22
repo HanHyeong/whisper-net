@@ -17,11 +17,29 @@ export function httpGet(url: string, timeout = 3000): Promise<string> {
 }
 
 export function downloadFile(ip: string, port: number, fileName: string, destPath: string): Promise<void> {
+  const encodedPath = fileName.split('/').map(encodeURIComponent).join('/')
+  return downloadBinary(`http://${ip}:${port}/whisper/share/${encodedPath}`, destPath)
+}
+
+export function downloadRoomAttachment(
+  ip: string,
+  port: number,
+  roomId: string,
+  messageId: string,
+  fileName: string,
+  destPath: string
+): Promise<void> {
+  const qs = new URLSearchParams({ roomId, messageId, fileName })
+  return downloadBinary(`http://${ip}:${port}/whisper/room-attachment?${qs.toString()}`, destPath)
+}
+
+function downloadBinary(url: string, destPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destPath)
-    const url = `http://${ip}:${port}/whisper/share/${encodeURIComponent(fileName)}`
     const req = http.get(url, { timeout: 30000 }, (res) => {
       if (res.statusCode !== 200) {
+        file.close()
+        fs.unlink(destPath, () => {})
         reject(new Error(`Status ${res.statusCode}`))
         return
       }

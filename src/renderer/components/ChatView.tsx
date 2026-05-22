@@ -7,6 +7,7 @@ interface Props {
   room: Room
   peers: Peer[]
   onSendFileAttachment: () => void
+  onPasteImage: (file: File) => void
   onDownloadAttachment: (msg: ChatMessage) => void
   onLeaveRoom: (roomId: string) => void
 }
@@ -21,7 +22,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export default function ChatView({ room, peers, onSendFileAttachment, onDownloadAttachment, onLeaveRoom }: Props) {
+export default function ChatView({ room, peers, onSendFileAttachment, onPasteImage, onDownloadAttachment, onLeaveRoom }: Props) {
   const { localPeerId, localNickname, isRoomMuted, toggleRoomMute } = useAppStore()
   const muted = isRoomMuted(room.roomId)
   const [text, setText] = useState('')
@@ -58,6 +59,20 @@ export default function ChatView({ room, peers, onSendFileAttachment, onDownload
   const formatTime = (ts: number) => {
     const d = new Date(ts)
     return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+  }
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    for (const item of items) {
+      if (!item.type.startsWith('image/')) continue
+      const file = item.getAsFile()
+      if (!file) continue
+      e.preventDefault()
+      void onPasteImage(file)
+      return
+    }
   }
 
   return (
@@ -186,13 +201,14 @@ export default function ChatView({ room, peers, onSendFileAttachment, onDownload
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onPaste={handlePaste}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing && !e.shiftKey) {
               e.preventDefault()
               send()
             }
           }}
-          placeholder="메시지를 입력하세요..."
+          placeholder="메시지를 입력하세요... (이미지 붙여넣기 가능)"
           rows={1}
           className="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 resize-none min-h-[40px] max-h-[120px] overflow-y-auto"
         />

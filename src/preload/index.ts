@@ -15,8 +15,27 @@ const api = {
     ipcRenderer.invoke('net:send-text', roomId, content),
   sendFileAttachment: (roomId: string) =>
     ipcRenderer.invoke('net:send-file-attachment', roomId),
-  downloadAttachment: (roomId: string, messageId: string, fileName: string, senderIp: string, senderDiscoveryPort: number) =>
-    ipcRenderer.invoke('net:download-attachment', roomId, messageId, fileName, senderIp, senderDiscoveryPort),
+  sendFileAttachmentFromData: (
+    roomId: string,
+    payload: { fileName?: string; mimeType: string; dataBase64: string }
+  ) => ipcRenderer.invoke('net:send-file-attachment-from-data', roomId, payload),
+  downloadAttachment: (
+    roomId: string,
+    messageId: string,
+    fileName: string,
+    senderIp: string,
+    senderDiscoveryPort: number,
+    senderPeerId?: string
+  ) =>
+    ipcRenderer.invoke(
+      'net:download-attachment',
+      roomId,
+      messageId,
+      fileName,
+      senderIp,
+      senderDiscoveryPort,
+      senderPeerId
+    ),
   getPeers: () => ipcRenderer.invoke('net:get-peers'),
   getRooms: () => ipcRenderer.invoke('net:get-rooms'),
   connectPeer: (ip: string, port: number) => ipcRenderer.invoke('net:connect-peer', ip, port),

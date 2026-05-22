@@ -164,6 +164,28 @@ export default function App() {
     }
   }
 
+  const handlePasteImage = async (file: File) => {
+    if (!activeRoomId) return
+    if (!sharedFolder) {
+      alert('파일 첨부를 위한 공유 폴터 설정이 필요합니다.')
+      return
+    }
+    if (!file.type.startsWith('image/')) return
+
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+    const dataBase64 = btoa(binary)
+
+    const res: any = await window.whisperAPI.sendFileAttachmentFromData(activeRoomId, {
+      mimeType: file.type,
+      dataBase64,
+    })
+    if (res?.error) {
+      alert(res.error)
+    }
+  }
+
   const handleDownloadAttachment = async (msg: ChatMessage) => {
     if (!msg.attachment) return
     const senderPeer = peers.find((p) => p.peerId === msg.attachment!.senderId)
@@ -176,7 +198,8 @@ export default function App() {
       msg.attachment.messageId,
       msg.attachment.fileName,
       senderPeer.ip,
-      senderPeer.discoveryPort
+      senderPeer.discoveryPort,
+      senderPeer.peerId
     )
     if (result?.error) {
       alert(result.error)
@@ -275,6 +298,7 @@ export default function App() {
             room={activeRoom}
             peers={peers}
             onSendFileAttachment={handleSendFileAttachment}
+            onPasteImage={handlePasteImage}
             onDownloadAttachment={handleDownloadAttachment}
             onLeaveRoom={handleRequestLeaveRoom}
           />
