@@ -273,6 +273,7 @@ export default function App() {
         {activeRoom ? (
           <ChatView
             room={activeRoom}
+            peers={peers}
             onSendFileAttachment={handleSendFileAttachment}
             onDownloadAttachment={handleDownloadAttachment}
             onLeaveRoom={handleRequestLeaveRoom}

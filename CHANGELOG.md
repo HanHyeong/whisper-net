@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [1.8.2] — 2026-05-22
+
+### Added
+
+- **참여자 목록**: ChatView 헤더의 `N명 참여중` 클릭 시 닉네임·온라인 상태 표시
+
+---
+
 ## [1.8.1] — 2026-05-22
 
 ### Added

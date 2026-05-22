@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
-import { Room, ChatMessage, useAppStore } from '../stores/appStore'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { Room, ChatMessage, Peer, useAppStore } from '../stores/appStore'
+import RoomMembersModal from './RoomMembersModal'
+import { buildRoomMemberList } from '../utils/roomMembers'
 
 interface Props {
   room: Room
+  peers: Peer[]
   onSendFileAttachment: () => void
   onDownloadAttachment: (msg: ChatMessage) => void
   onLeaveRoom: (roomId: string) => void
@@ -18,12 +21,19 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export default function ChatView({ room, onSendFileAttachment, onDownloadAttachment, onLeaveRoom }: Props) {
-  const { localPeerId, isRoomMuted, toggleRoomMute } = useAppStore()
+export default function ChatView({ room, peers, onSendFileAttachment, onDownloadAttachment, onLeaveRoom }: Props) {
+  const { localPeerId, localNickname, isRoomMuted, toggleRoomMute } = useAppStore()
   const muted = isRoomMuted(room.roomId)
   const [text, setText] = useState('')
+  const [showMembers, setShowMembers] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const memberIds = Array.isArray(room.members) ? room.members : []
+  const memberList = useMemo(
+    () => buildRoomMemberList(memberIds, peers, localPeerId, localNickname),
+    [memberIds, peers, localPeerId, localNickname]
+  )
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -55,9 +65,14 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
       <header className="px-4 py-3 border-b border-gray-700 bg-gray-800 flex items-center justify-between">
         <div>
           <h3 className="font-semibold">{room.name}</h3>
-          <span className="text-xs text-gray-500">
-            {(Array.isArray(room.members) ? room.members.length : 0)}명 참여중 · {room.type === 'public' ? '개방형' : '비밀형'}
-          </span>
+          <button
+            type="button"
+            onClick={() => setShowMembers(true)}
+            className="text-xs text-gray-500 hover:text-emerald-400 transition-colors"
+            title="참여자 목록 보기"
+          >
+            {memberIds.length}명 참여중 · {room.type === 'public' ? '개방형' : '비밀형'}
+          </button>
         </div>
         <div className="flex gap-2">
           <button
@@ -183,6 +198,14 @@ export default function ChatView({ room, onSendFileAttachment, onDownloadAttachm
         />
         <button onClick={send} className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded text-sm font-medium">전송</button>
       </div>
+
+      {showMembers && (
+        <RoomMembersModal
+          roomName={room.name}
+          members={memberList}
+          onClose={() => setShowMembers(false)}
+        />
+      )}
     </div>
   )
 }
