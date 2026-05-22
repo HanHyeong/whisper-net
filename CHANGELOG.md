@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [1.9.1] — 2026-05-22
+
+### Fixed
+
+- **업데이트 캐시 정리**: 새 버전 검증 후 구버전 manifest·설치 파일·incoming 자동 삭제 (최신 1세트만 유지)
+- **공유폴더 브라우저**: `_whisper-updates` 목록 숨김 및 경로 탐색 403
+
+---
+
 ## [1.9.0] — 2026-05-22
 
 ### Added

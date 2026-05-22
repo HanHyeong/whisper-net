@@ -7,7 +7,7 @@ import os from 'os'
 import { canonicalJson } from '../../../src/main/update/canonicalJson.ts'
 import { UpdateVerifier } from '../../../src/main/update/UpdateVerifier.ts'
 import { compareSemver } from '../../../src/main/update/semver.ts'
-import { isAllowedUpdateSharePath } from '../../../src/main/update/paths.ts'
+import { isAllowedUpdateSharePath, isHiddenShareBrowsePath, isHiddenShareEntry } from '../../../src/main/update/paths.ts'
 
 function signObject(obj: object, privateKey: ReturnType<typeof generateKeyPairSync>['privateKey']) {
   const bytes = Buffer.from(canonicalJson(obj), 'utf8')
@@ -38,6 +38,17 @@ describe('paths guard', () => {
     )
     assert.equal(isAllowedUpdateSharePath('_whisper-updates/incoming/foo.exe'), false)
     assert.equal(isAllowedUpdateSharePath('_whisper-updates/verified/state.json'), false)
+  })
+})
+
+describe('hidden share dirs', () => {
+  it('hides system folders from browse paths', () => {
+    assert.equal(isHiddenShareBrowsePath('_whisper-updates'), true)
+    assert.equal(isHiddenShareBrowsePath('_whisper-updates/verified'), true)
+    assert.equal(isHiddenShareBrowsePath('_roomsFiles'), true)
+    assert.equal(isHiddenShareBrowsePath('documents'), false)
+    assert.equal(isHiddenShareEntry('_whisper-updates'), true)
+    assert.equal(isHiddenShareEntry('photos'), false)
   })
 })
 

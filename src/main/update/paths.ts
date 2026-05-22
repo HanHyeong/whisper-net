@@ -3,6 +3,20 @@ export const UPDATE_VERIFIED_PREFIX = '_whisper-updates/verified'
 export const UPDATE_INCOMING_DIR = 'incoming'
 export const UPDATE_VERIFIED_DIR = 'verified'
 
+/** 공유폴더 브라우저·목록 API에서 숨길 시스템 디렉터리 */
+export const HIDDEN_SHARE_DIR_NAMES = new Set(['_roomsFiles', '_whisper-updates'])
+
+export function isHiddenShareBrowsePath(relativePath: string): boolean {
+  const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  if (!normalized) return false
+  const firstSegment = normalized.split('/')[0]
+  return HIDDEN_SHARE_DIR_NAMES.has(firstSegment)
+}
+
+export function isHiddenShareEntry(name: string): boolean {
+  return HIDDEN_SHARE_DIR_NAMES.has(name)
+}
+
 export const ALLOWED_UPDATE_EXTENSIONS = new Set([
   '.json',
   '.sig',

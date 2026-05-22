@@ -3,6 +3,7 @@ import path from 'path'
 import { app } from 'electron'
 import { downloadBinary } from '../utils/http'
 import { UPDATE_INCOMING_DIR, UPDATE_VERIFIED_DIR, UPDATE_VERIFIED_PREFIX } from './paths'
+import { cleanIncomingDir, pruneVerifiedUpdates } from './cleanup'
 import { UpdateVerifier } from './UpdateVerifier'
 import { ArtifactEntry, ReleaseManifest, UpdateDownloadResult, UpdateProgress } from './types'
 
@@ -72,6 +73,9 @@ export class UpdateDownloader {
       const verifiedArtifact = path.join(verifiedRoot, artifact.relativePath)
       fs.mkdirSync(path.dirname(verifiedArtifact), { recursive: true })
       fs.renameSync(incomingArtifact, verifiedArtifact)
+
+      pruneVerifiedUpdates(verifiedRoot, manifest, artifact)
+      cleanIncomingDir(incomingRoot)
 
       this.emitProgress('ready', 100, '다운로드 및 검증 완료')
       return {

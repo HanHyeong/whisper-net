@@ -4,7 +4,7 @@ import { PeerInfo } from './protocol'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
-import { isAllowedUpdateSharePath } from '../update/paths'
+import { isAllowedUpdateSharePath, isHiddenShareBrowsePath, isHiddenShareEntry } from '../update/paths'
 
 const PORT_RANGE = [8080, 8081, 8082, 8083]
 
@@ -131,6 +131,11 @@ export class TcpDiscovery extends EventEmitter {
     try {
       const url = new URL(req.url!, `http://${req.headers.host}`)
       const relativePath = decodeURIComponent(url.searchParams.get('path') || '')
+      if (isHiddenShareBrowsePath(relativePath)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Access denied' }))
+        return
+      }
       const targetPath = path.join(this.sharedPath, relativePath)
 
       const resolvedShared = path.resolve(this.sharedPath)
@@ -149,7 +154,7 @@ export class TcpDiscovery extends EventEmitter {
 
       const entries = fs.readdirSync(targetPath, { withFileTypes: true })
       const items = entries
-        .filter((e) => e.name !== '_roomsFiles')
+        .filter((e) => !isHiddenShareEntry(e.name))
         .map((e) => {
           const stat = fs.statSync(path.join(targetPath, e.name))
           return {
