@@ -2,10 +2,21 @@ import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
 
+interface UpdateConfig {
+  channel?: 'stable' | 'beta'
+  checkOnStartup?: boolean
+  checkIntervalHours?: number
+  mirrorEnabled?: boolean
+  maxConcurrentServes?: number
+  preferredOriginPeerId?: string
+  trustedPublisherKeys?: Record<string, string>
+}
+
 interface AppConfig {
   nickname: string
   sharedPath: string
   showNotificationPreview: boolean
+  update?: UpdateConfig
 }
 
 const defaultConfig: AppConfig = {

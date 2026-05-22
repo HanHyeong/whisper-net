@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [1.9.0] — 2026-05-22
+
+### Added
+
+- **LAN 업데이트 (Phase 1)**: Ed25519 서명 manifest, SHA-256 검증, Origin HTTP 다운로드
+- **`scripts/sign-release.mjs`**: 릴리스 팩 서명·`release-pack/_whisper-updates/verified/` 생성
+- **UpdateModal**: Sidebar 버전 클릭 → 확인·다운로드·설치 파일 열기
+- **공유폴더 보안**: `_whisper-updates/verified/` 외 HTTP serve 403
+
+---
+
 ## [1.8.6] — 2026-05-22
 
 ### Fixed

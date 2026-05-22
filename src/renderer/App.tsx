@@ -8,6 +8,7 @@ import ManualConnectModal from './components/ManualConnectModal'
 import SharedFileBrowser from './components/SharedFileBrowser'
 import JoinRoomModal from './components/JoinRoomModal'
 import LeaveRoomModal from './components/LeaveRoomModal'
+import UpdateModal from './components/UpdateModal'
 
 export default function App() {
   const {
@@ -28,6 +29,8 @@ export default function App() {
   const [alertMessage, setAlertMessage] = useState<string | null>(null)
   const [showNotificationPreview, setShowNotificationPreview] = useState(true)
   const [leaveTargetRoom, setLeaveTargetRoom] = useState<{ roomId: string; name: string; isLastMember: boolean } | null>(null)
+  const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
 
   // Keep latest activeRoomId in ref to avoid stale closure in event handlers
   const activeRoomIdRef = useRef(activeRoomId)
@@ -97,8 +100,12 @@ export default function App() {
       updateTransfer(info.transferId, { status: 'complete' })
       setTimeout(() => removeTransfer(info.transferId), 4000)
     })
+    const unsubUpdateAvailable = window.whisperAPI.onUpdateAvailable(() => {
+      setShowUpdateModal(true)
+    })
 
     window.whisperAPI.rendererReady?.()
+    window.whisperAPI.getVersion().then((v: string) => setAppVersion(v))
 
     window.whisperAPI.getConfig().then((cfg: any) => {
       if (!cfg?.nickname) {
@@ -125,6 +132,7 @@ export default function App() {
       unsubLocal()
       unsubProgress()
       unsubComplete()
+      unsubUpdateAvailable()
     }
   }, [setPeers, setLocalPeerId, setLocalNickname, setRooms, addMessage, addTransfer, updateTransfer, removeTransfer])
 
@@ -318,6 +326,7 @@ export default function App() {
         onRequestJoinRoom={handleRequestJoinRoom}
         onBrowsePeerFiles={handleBrowsePeerFiles}
         onRefreshPeers={() => window.whisperAPI.refreshPeers()}
+        onCheckUpdate={() => setShowUpdateModal(true)}
         nickname={localNickname}
         sharedFolder={sharedFolder}
         unreadCounts={unreadCounts}
@@ -436,6 +445,9 @@ export default function App() {
           onConfirm={handleConfirmLeaveRoom}
           onCancel={() => setLeaveTargetRoom(null)}
         />
+      )}
+      {showUpdateModal && (
+        <UpdateModal currentVersion={appVersion} onClose={() => setShowUpdateModal(false)} />
       )}
       {alertMessage && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

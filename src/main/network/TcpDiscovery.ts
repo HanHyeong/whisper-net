@@ -4,6 +4,7 @@ import { PeerInfo } from './protocol'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
+import { isAllowedUpdateSharePath } from '../update/paths'
 
 const PORT_RANGE = [8080, 8081, 8082, 8083]
 
@@ -179,6 +180,12 @@ export class TcpDiscovery extends EventEmitter {
     }
     const url = new URL(req.url!, `http://${req.headers.host}`)
     const relativePath = decodeURIComponent(url.pathname.replace('/whisper/share/', ''))
+    const normalized = relativePath.replace(/\\/g, '/').replace(/\/+$/, '')
+    if (normalized.startsWith('_whisper-updates/') && !isAllowedUpdateSharePath(normalized)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Update path denied' }))
+      return
+    }
     const filePath = this.resolveAttachmentFile(relativePath)
     if (!filePath) {
       res.writeHead(404)
@@ -217,6 +224,10 @@ export class TcpDiscovery extends EventEmitter {
     if (!this.sharedPath) return null
     const normalized = relativePath.replace(/\\/g, '/').replace(/\/+$/, '')
     if (!normalized) return null
+
+    if (normalized.startsWith('_whisper-updates/') && !isAllowedUpdateSharePath(normalized)) {
+      return null
+    }
 
     const resolvedShared = path.resolve(this.sharedPath)
     const directPath = path.resolve(path.join(this.sharedPath, normalized))

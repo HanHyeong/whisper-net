@@ -7,8 +7,10 @@ import { loadConfig } from './utils/config'
 import { ipcState, sendToRenderer } from './ipc/context'
 import { registerAppHandlers } from './ipc/appHandlers'
 import { registerNetworkHandlers, setupNetworkEvents } from './ipc/networkHandlers'
+import { registerUpdateHandlers, setupUpdateEvents } from './ipc/updateHandlers'
 import { cleanupActiveTransfers, registerFileTransferHandlers } from './ipc/fileTransferHandlers'
 import { clearFlashOnFocus, createTray, notifyUnreadMessage, resetUnreadCount } from './tray'
+import { UpdateService } from './update/UpdateService'
 
 const packageJsonPath = path.join(__dirname, '../../package.json')
 const appVersion = fs.existsSync(packageJsonPath)
@@ -17,6 +19,7 @@ const appVersion = fs.existsSync(packageJsonPath)
 
 const isE2E = process.env.WHISPER_E2E === '1'
 const isDev = !app.isPackaged && !isE2E
+const updateEnabled = !isE2E && (process.env.WHISPER_ENABLE_UPDATE === '1' || !isDev)
 let isQuitting = false
 
 const canStartApp =
@@ -47,6 +50,7 @@ function registerIpcHandlers(initialNickname: string) {
   registerAppHandlers()
   registerNetworkHandlers(initialNickname)
   registerFileTransferHandlers()
+  registerUpdateHandlers()
 }
 
 function createWindow(initialNickname: string, initialSharedPath?: string) {
@@ -87,6 +91,18 @@ function createWindow(initialNickname: string, initialSharedPath?: string) {
   })
 
   network.start()
+
+  ipcState.updateService?.stop()
+  ipcState.updateService = new UpdateService({
+    getPeers: () => ipcState.network?.getPeers() ?? [],
+    getSharedPath: () => ipcState.network?.getSharedPath() ?? ipcState.initialSharedPath ?? null,
+    currentVersion: appVersion,
+    enabled: updateEnabled,
+  })
+  setupUpdateEvents()
+  if (updateEnabled) {
+    ipcState.updateService.scheduleCheck()
+  }
 
   if (initialSharedPath) {
     network.setSharedPath(initialSharedPath)
@@ -158,5 +174,7 @@ if (canStartApp) {
       } catch {}
     }
     ipcState.network?.stop()
+    ipcState.updateService?.stop()
+    ipcState.updateService = null
   })
 }

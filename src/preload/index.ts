@@ -58,6 +58,22 @@ const api = {
   getRoomMute: (roomId: string) => ipcRenderer.invoke('app:get-room-mute', roomId),
   setNotificationPreview: (value: boolean) => ipcRenderer.invoke('app:set-notification-preview', value),
 
+  checkForUpdates: (channel?: string) => ipcRenderer.invoke('update:check', channel),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  openUpdateInstaller: (installerPath: string) => ipcRenderer.invoke('update:open-installer', installerPath),
+  getUpdateSettings: () => ipcRenderer.invoke('update:get-settings'),
+
+  onUpdateProgress: (cb: (info: { phase: string; percent: number; message?: string }) => void) => {
+    const handler = (_: unknown, info: { phase: string; percent: number; message?: string }) => cb(info)
+    ipcRenderer.on('update:progress', handler)
+    return () => ipcRenderer.removeListener('update:progress', handler)
+  },
+  onUpdateAvailable: (cb: (info: unknown) => void) => {
+    const handler = (_: unknown, info: unknown) => cb(info)
+    ipcRenderer.on('update:available', handler)
+    return () => ipcRenderer.removeListener('update:available', handler)
+  },
+
   onPeers: (cb: (peers: any[]) => void) => {
     const handler = (_: any, peers: any[]) => cb(peers)
     ipcRenderer.on('network:peers', handler)

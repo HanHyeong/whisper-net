@@ -1,6 +1,6 @@
 {
   "name": "whisper-net",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "description": "Serverless P2P LAN messenger",
   "main": "./out/main/index.js",
   "author": "whisper-net",
@@ -13,6 +13,8 @@
     "preview": "electron-vite preview",
     "dist": "npm run build && electron-builder",
     "test:e2e": "playwright test",
+    "test:unit": "npx tsx --test tests/unit/update/*.test.ts",
+    "sign-release": "node scripts/sign-release.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
@@ -50,6 +52,7 @@
     "electron-vite": "^2.2.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
+    "tsx": "^4.22.3",
     "typescript": "^5.4.5",
     "vite": "^5.2.11"
   },

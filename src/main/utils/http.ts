@@ -33,16 +33,26 @@ export function downloadRoomAttachment(
   return downloadBinary(`http://${ip}:${port}/whisper/room-attachment?${qs.toString()}`, destPath)
 }
 
-function downloadBinary(url: string, destPath: string): Promise<void> {
+export function downloadBinary(
+  url: string,
+  destPath: string,
+  onProgress?: (received: number, total: number) => void
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destPath)
-    const req = http.get(url, { timeout: 30000 }, (res) => {
+    const req = http.get(url, { timeout: 120000 }, (res) => {
       if (res.statusCode !== 200) {
         file.close()
         fs.unlink(destPath, () => {})
         reject(new Error(`Status ${res.statusCode}`))
         return
       }
+      const total = Number(res.headers['content-length'] || 0)
+      let received = 0
+      res.on('data', (chunk: Buffer) => {
+        received += chunk.length
+        onProgress?.(received, total)
+      })
       res.pipe(file)
       file.on('finish', () => {
         file.close()

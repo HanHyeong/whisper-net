@@ -2,6 +2,7 @@ import { BrowserWindow } from 'electron'
 import fs from 'fs'
 import { NetworkManager } from '../network/NetworkManager'
 import { Room } from '../network/types'
+import { UpdateService } from '../update/UpdateService'
 
 export interface ActiveTransfer {
   filePath?: string
@@ -14,6 +15,7 @@ export interface ActiveTransfer {
 
 export const ipcState = {
   network: null as NetworkManager | null,
+  updateService: null as UpdateService | null,
   mainWin: null as BrowserWindow | null,
   peerId: '',
   initialSharedPath: undefined as string | undefined,

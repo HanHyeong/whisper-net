@@ -14,12 +14,13 @@ interface Props {
   onStopSharing: () => void
   onBrowsePeerFiles: (peer: Peer) => void
   onRefreshPeers: () => void
+  onCheckUpdate: () => void
   nickname: string
   sharedFolder: string | null
   unreadCounts: Record<string, number>
 }
 
-export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onRequestJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, onRefreshPeers, nickname, sharedFolder, unreadCounts }: Props) {
+export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCreateRoom, onRequestJoinRoom, onManualConnect, onEditNickname, onSetSharedFolder, onStopSharing, onBrowsePeerFiles, onRefreshPeers, onCheckUpdate, nickname, sharedFolder, unreadCounts }: Props) {
   const [version, setVersion] = useState('')
   const [localInfo, setLocalInfo] = useState<{ ip: string; tcpPort: number; discoveryPort: number } | null>(null)
   useEffect(() => {
@@ -50,7 +51,17 @@ export default function Sidebar({ peers, rooms, activeRoomId, onSelectRoom, onCr
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-bold text-lg text-emerald-400">Whisper Net</h1>
-            <p className="text-xs text-gray-500">P2P LAN Messenger <span className="text-[10px] text-gray-600 ml-1">v{version}</span></p>
+            <p className="text-xs text-gray-500">
+              P2P LAN Messenger{' '}
+              <button
+                type="button"
+                onClick={onCheckUpdate}
+                className="text-[10px] text-gray-600 hover:text-emerald-400 ml-1 underline-offset-2 hover:underline"
+                title="업데이트 확인"
+              >
+                v{version}
+              </button>
+            </p>
           </div>
           <button onClick={onEditNickname} className="text-[10px] text-gray-400 hover:text-white border border-gray-600 rounded px-2 py-1" title="nick change">
             {nickname || 'User'}
